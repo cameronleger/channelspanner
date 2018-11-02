@@ -1,0 +1,12 @@
+[submodule "dep/glew"]
+	path = dep/glew
+	url = https://github.com/nigels-com/glew
+[submodule "dep/lglw"]
+	path = dep/lglw
+	url = https://github.com/bsp2/lglw
+[submodule "dep/kissfft"]
+	path = dep/kissfft
+	url = https://github.com/marton78/kissfft
+[submodule "dep/kissfft"]
+	path = dep/kissfft
+	url = https://github.com/mborgerding/kissfft
