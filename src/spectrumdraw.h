@@ -34,7 +34,7 @@ draw_ctx_t* init_draw_ctx( track_t* track );
 
 void free_draw_ctx( draw_ctx_t* ctx );
 
-void set_mouse( draw_ctx_t* ctx, int32_t mousex, int32_t mousey, int32_t width, int32_t height );
+void set_mouse( draw_ctx_t* ctx, int32_t mousex, int32_t mousey );
 
 void init_draw( draw_ctx_t* ctx );
 

@@ -22,7 +22,7 @@ track_t* init_sample_data( size_t channelCount, float sampleRate, size_t frameSi
    data->window = malloc( frameSize * sizeof( float ) );
    window_hanning( data->window, frameSize );
 
-   data->kissfft = kiss_fft_alloc( (int) frameSize, 0, 0, 0 );
+   data->kisscfg = kiss_fft_alloc( (int) frameSize, 0, 0, 0 );
    data->channels = calloc( (size_t) channelCount, sizeof( channel_t ) );
 
    for ( size_t i = 0; i < channelCount; i++ )
@@ -50,8 +50,8 @@ void free_sample_data( track_t* track )
       track->channels[i].fft = NULL;
    }
 
-   kiss_fft_free( track->kissfft );
-   track->kissfft = NULL;
+   kiss_fft_free( track->kisscfg );
+   track->kisscfg = NULL;
 
    free( track->channels );
    free( track );
@@ -74,12 +74,23 @@ void add_sample_data( track_t* track, size_t channel, const float* samples, size
    }
 }
 
-void process_samples( track_t* track )
+void mix( const float* from, float* to, const float kFrom, const float kTo, size_t count )
+{
+   while ( count-- )
+   {
+      *to = *(to) * kTo + *(from++) * kFrom;
+      to++;
+   }
+}
+
+void process_samples( track_t* track, float reactivity )
 {
    if ( NULL == track ) return;
 
+   size_t fftSize = track->frameSize / 2 + 1;
    kiss_fft_cpx samples[track->frameSize];
-   kiss_fft_cpx fft[track->frameSize];
+   kiss_fft_cpx fftResult[track->frameSize];
+   float fft[fftSize];
 
    for ( size_t ch = 0; ch < track->channelCount; ch++ )
    {
@@ -91,32 +102,26 @@ void process_samples( track_t* track )
          continue;
       }
 
-      float mx = 0.0f;
       for ( int i = 0; i < track->frameSize; i++ )
       {
          samples[i].r = track->window[i] * c->samples[(c->head + i) % track->frameSize];
-         if ( samples[i].r > mx ) mx = samples[i].r;
          samples[i].i = 0.0f;
       }
 
-      if ( mx <= 0.0f )
-      {
-         c->hasFFT = 0;
-         continue;
-      }
-
-      kiss_fft( track->kissfft, samples, fft );
+      kiss_fft( track->kisscfg, samples, fftResult );
 
       // TMP
 //      float df = track->sampleRate / track->frameSize;
 
-      for ( int i = 0; i < (track->frameSize / 2 + 1); i++ )
+      for ( int i = 0; i < fftSize; i++ )
       {
-         c->fft[i] = sqrtf( (fft[i].r * fft[i].r + fft[i].i * fft[i].i) ) / ( track->frameSize / 4 );
+         fft[i] = sqrtf( (fftResult[i].r * fftResult[i].r + fftResult[i].i * fftResult[i].i) ) / ( track->frameSize / 4 );
 
 //         if ( i % 16 == 0 )
-//            DEBUG_PRINT( "%5i i %12.2f Hz %12.6f g %8.2f dB\n", i, i * df, c->fft[i], GAINTODB( c->fft[i] ) );
+//            DEBUG_PRINT( "%5i i %12.2f Hz %12.6f g %8.2f dB\n", i, i * df, c->fft[i], GAINTODB( c->fftResult[i] ) );
       }
+
+      mix( fft, c->fft, reactivity, 1.0f - reactivity, fftSize );
 
       c->hasFFT = 1;
 

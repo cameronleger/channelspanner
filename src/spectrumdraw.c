@@ -55,12 +55,12 @@ void free_draw_ctx( draw_ctx_t* ctx )
    free( ctx );
 }
 
-void set_mouse( draw_ctx_t* ctx, int32_t mousex, int32_t mousey, int32_t width, int32_t height )
+void set_mouse( draw_ctx_t* ctx, int32_t mousex, int32_t mousey )
 {
    if ( NULL == ctx ) return;
 
-   ctx->mousex = (float)mousex / width * 2 - 1;
-   ctx->mousey = (float)mousey / height * 2 - 1;
+   ctx->mousex = (float)mousex / ctx->width * 2 - 1;
+   ctx->mousey = (float)(ctx->height - mousey) / ctx->height * 2 - 1;
 }
 
 void draw_mouse( draw_ctx_t* ctx )

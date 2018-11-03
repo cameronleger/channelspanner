@@ -40,7 +40,7 @@ typedef struct {
    size_t channelCount;
    size_t frameSize;
    float sampleRate;
-   kiss_fft_cfg kissfft;
+   kiss_fft_cfg kisscfg;
    float* window;
    channel_t* channels;
 } track_t;
@@ -51,7 +51,7 @@ void free_sample_data( track_t* track );
 
 void add_sample_data( track_t* track, size_t channel, const float* samples, size_t sampleCount );
 
-void process_samples( track_t* track );
+void process_samples( track_t* track, float reactivity );
 
 #ifdef __cplusplus
 }

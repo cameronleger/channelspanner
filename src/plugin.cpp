@@ -10,10 +10,10 @@
 #include "spectrumgenerator.h"
 #include "spectrumdraw.h"
 
-#define EDITWIN_X 0
-#define EDITWIN_Y 0
-#define EDITWIN_W 1294
-#define EDITWIN_H 800
+#define EDITWIN_W 650
+#define EDITWIN_H 400
+
+#define RESOLUTION_MAX 4
 
 #define FFT_MAX 5
 #define FFT_SIZER(r) (256 * (uint)exp2f(r))
@@ -47,11 +47,10 @@ public:
 
    lglw_t lglw;
 
-   int32_t mousex = 0;
-   int32_t mousey = 0;
-
    float sampleRate = 44100.0f;
-   size_t fftResolution = 0;
+   uint8_t fftResolution = 1;
+   float reactivity = 0.25f;
+   uint8_t windowScale = 1;
 
    uint32_t redraw_ival_ms = 1000 / 60;
 //   uint32_t redraw_ival_ms = 0;
@@ -115,7 +114,7 @@ public:
    void openEditor( void* wnd )
    {
 
-      (void) lglw_window_open( lglw, wnd, EDITWIN_X, EDITWIN_Y, EDITWIN_W, EDITWIN_H );
+      (void) lglw_window_open( lglw, wnd, 0, 0, editor_rect.right, editor_rect.bottom );
 
       lglw_mouse_callback_set( lglw, &loc_mouse_cbk );
       lglw_focus_callback_set( lglw, &loc_focus_cbk );
@@ -163,9 +162,7 @@ public:
 
    void setMousePosition( int32_t x, int32_t y )
    {
-      mousex = x;
-      mousey = y;
-      set_mouse( ctx, x, EDITWIN_H - y, EDITWIN_W, EDITWIN_H );
+      set_mouse( ctx, x, y );
    }
 
    void setSampleRate( float _rate )
@@ -183,6 +180,10 @@ public:
          return 0;
       case 0:
          return (float)fftResolution / FFT_MAX;
+      case 1:
+         return reactivity;
+      case 2:
+         return (float)(windowScale - 1) / RESOLUTION_MAX;
       }
    }
 
@@ -194,11 +195,29 @@ public:
          DEBUG_PRINT( "Unused Parameter Name Request: %i\n", uniqueParamId );
          break;
       case 0:
-         fftResolution = (uint)roundf( value * FFT_MAX );
-         size_t fftSize = FFT_SIZER(fftResolution);
-         if ( track->frameSize != fftSize )
+      {
+         fftResolution = (uint8_t) roundf( value * FFT_MAX );
+         if ( track->frameSize != FFT_SIZER( fftResolution ) )
             resetTrack();
          break;
+      }
+      case 1:
+         reactivity = value;
+         break;
+      case 2:
+      {
+         windowScale = (uint8_t) roundf( value * (RESOLUTION_MAX - 1) + 1 );
+         if ( editor_rect.bottom != EDITWIN_H * windowScale)
+         {
+            editor_rect.left = 0;
+            editor_rect.top = 0;
+            editor_rect.right = (VstInt16)(EDITWIN_W * windowScale);
+            editor_rect.bottom = (VstInt16)(EDITWIN_H * windowScale);
+            (void)lglw_window_resize(lglw, editor_rect.right, editor_rect.bottom);
+            resetTrack();
+         }
+         break;
+      }
       }
    }
 
@@ -210,7 +229,13 @@ public:
          DEBUG_PRINT( "Unused Parameter Name Request: %i\n", uniqueParamId );
          break;
       case 0:
-         strncpy( s, "FFTSize", sMaxLen );
+         ::strncpy( s, "FFTSize", sMaxLen );
+         break;
+      case 1:
+         ::strncpy( s, "Speed", sMaxLen );
+         break;
+      case 2:
+         ::strncpy( s, "WinSize", sMaxLen );
          break;
       }
    }
@@ -223,7 +248,13 @@ public:
          DEBUG_PRINT( "Unused Parameter Value Request: %i\n", uniqueParamId );
          break;
       case 0:
-         snprintf( s, sMaxLen, "%i", FFT_SIZER(fftResolution) );
+         ::snprintf( s, sMaxLen, "%i", FFT_SIZER(fftResolution) );
+         break;
+      case 1:
+         ::snprintf( s, sMaxLen, "%.2f", reactivity );
+         break;
+      case 2:
+         ::snprintf( s, sMaxLen, "%i", windowScale );
          break;
       }
    }
@@ -236,7 +267,13 @@ public:
          DEBUG_PRINT( "Unused Parameter Unit Request: %i\n", uniqueParamId );
          break;
       case 0:
-         strncpy( s, "x", sMaxLen );
+         ::strncpy( s, "x", sMaxLen );
+         break;
+      case 1:
+         ::strncpy( s, "%", sMaxLen );
+         break;
+      case 2:
+         ::strncpy( s, "x", sMaxLen );
          break;
       }
    }
@@ -278,7 +315,7 @@ void VSTPluginProcessSamplesFloat32( AEffect* vstPlugin, float** inputs, float**
       }
    }
 
-   process_samples( track );
+   process_samples( track, wrapper->reactivity );
 }
 }
 
@@ -297,7 +334,7 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
 
    case effGetVstVersion:
       DEBUG_PRINT( "effGetVstVersion\n" );
-      r = 0;
+      r = kVstVersion;
       break;
 
    case effGetPlugCategory:
@@ -323,7 +360,7 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
       break;
 
    case effGetVendorString:
-      strncpy( static_cast<char*>(ptr), "Cameron Leger", kVstMaxVendorStrLen );
+      ::strncpy( static_cast<char*>(ptr), "Cameron Leger", kVstMaxVendorStrLen );
       r = 1;
       break;
 
@@ -407,7 +444,6 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
       break;
 
    case effSetSampleRate:
-      DEBUG_PRINT( "effSetSampleRate %f\n", opt );
       wrapper->setSampleRate( opt );
       r = 1;
       break;
@@ -486,10 +522,10 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
    case effEditGetRect:
       if ( nullptr != ptr )
       {
-         wrapper->editor_rect.left = EDITWIN_X;
-         wrapper->editor_rect.top = EDITWIN_Y;
-         wrapper->editor_rect.right = EDITWIN_X + EDITWIN_W;
-         wrapper->editor_rect.bottom = EDITWIN_Y + EDITWIN_H;
+         wrapper->editor_rect.left = 0;
+         wrapper->editor_rect.top = 0;
+         wrapper->editor_rect.right = (VstInt16)(EDITWIN_W * wrapper->windowScale);
+         wrapper->editor_rect.bottom = (VstInt16)(EDITWIN_H * wrapper->windowScale);
          *(void**) ptr = (void*) &wrapper->editor_rect;
          r = 1;
       }
@@ -604,9 +640,18 @@ VSTPluginWrapper::VSTPluginWrapper( audioMasterCallback vstHostCallback,
    _vstPlugin.setParameter = VSTPluginSetParameter;
    _vstPlugin.processReplacing = VSTPluginProcessSamplesFloat32;
 
-   lglw = lglw_init( EDITWIN_W, EDITWIN_H );
+   editor_rect.top = 0;
+   editor_rect.left = 0;
+   editor_rect.right = (VstInt16)(EDITWIN_W * windowScale);
+   editor_rect.bottom = (VstInt16)(EDITWIN_H * windowScale);
+
+   lglw = lglw_init( editor_rect.right, editor_rect.bottom );
 
    lglw_userdata_set( lglw, this );
+
+   track = nullptr;
+   ctx = nullptr;
+   initTrack();
 }
 
 VSTPluginWrapper::~VSTPluginWrapper()
@@ -624,10 +669,10 @@ VSTPluginMain( audioMasterCallback
            new VSTPluginWrapper( vstHostCallback,
                                  CCONST( 't', 'e', 's', 't' ), // unregistered
                                  PLUGIN_VERSION,
-                                 1,    // 1 params
-                                 0,    // no programs
-                                 2,    // 2 inputs
-                                 2 );  // 2 outputs
+                                 3,    // params
+                                 0,    // programs
+                                 2,    // inputs
+                                 2 );  // outputs
 
    return plugin->getVSTPlugin();
 }
