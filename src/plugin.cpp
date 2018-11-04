@@ -18,6 +18,8 @@
 #define FFT_MAX 5
 #define FFT_SIZER(r) (256 * (uint)exp2f(r))
 
+#define COLOR_MAX 6
+
 // Since the host is expecting a very specific API we need to make sure it has C linkage (not C++)
 extern "C" {
 extern AEffect* VSTPluginMain( audioMasterCallback vstHostCallback );
@@ -51,6 +53,7 @@ public:
    uint8_t fftResolution = 1;
    float reactivity = 0.25f;
    uint8_t windowScale = 1;
+   uint8_t color = 0;
 
    uint32_t redraw_ival_ms = 1000 / 60;
 //   uint32_t redraw_ival_ms = 0;
@@ -96,6 +99,7 @@ public:
    void initTrack()
    {
       track = init_sample_data( (size_t) getNumInputs(), sampleRate, FFT_SIZER(fftResolution) );
+      track->color = color;
       ctx = init_draw_ctx( track, windowScale );
    }
 
@@ -183,6 +187,8 @@ public:
       case 1:
          return sqrtf( reactivity );
       case 2:
+         return (float)color / COLOR_MAX;
+      case 3:
          return (float)(windowScale - 1) / RESOLUTION_MAX;
       }
    }
@@ -205,6 +211,13 @@ public:
          reactivity = value * value;
          break;
       case 2:
+      {
+         color = (uint8_t) roundf( value * COLOR_MAX );
+         if ( nullptr != track )
+            track->color = color;
+         break;
+      }
+      case 3:
       {
          windowScale = (uint8_t) roundf( value * (RESOLUTION_MAX - 1) + 1 );
          if ( editor_rect.bottom != EDITWIN_H * windowScale)
@@ -235,6 +248,9 @@ public:
          ::strncpy( s, "Speed", sMaxLen );
          break;
       case 2:
+         ::strncpy( s, "Color", sMaxLen );
+         break;
+      case 3:
          ::strncpy( s, "WinSize", sMaxLen );
          break;
       }
@@ -254,6 +270,9 @@ public:
          ::snprintf( s, sMaxLen, "%.2f", reactivity );
          break;
       case 2:
+         ::snprintf( s, sMaxLen, "%i", color );
+         break;
+      case 3:
          ::snprintf( s, sMaxLen, "%i", windowScale );
          break;
       }
@@ -273,6 +292,9 @@ public:
          ::strncpy( s, "%", sMaxLen );
          break;
       case 2:
+         ::strncpy( s, "", sMaxLen );
+         break;
+      case 3:
          ::strncpy( s, "x", sMaxLen );
          break;
       }
@@ -674,7 +696,7 @@ VSTPluginMain( audioMasterCallback
            new VSTPluginWrapper( vstHostCallback,
                                  CCONST( 't', 'e', 's', 't' ), // unregistered
                                  PLUGIN_VERSION,
-                                 3,    // params
+                                 4,    // params
                                  0,    // programs
                                  2,    // inputs
                                  2 );  // outputs

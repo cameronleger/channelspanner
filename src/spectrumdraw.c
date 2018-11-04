@@ -13,29 +13,49 @@
 #define GREY           0.216f,  0.231f,  0.255f
 #define GREY_LIGHT     0.294f,  0.318f,  0.337f
 #define WHITE          0.773f,  0.784f,  0.776f
-
-#define RED_DARK       0.647f,  0.259f,  0.259f
+#define RED_DARK       0.549f,  0.220f,  0.220f
 #define RED_LIGHT      0.800f,  0.400f,  0.400f
-#define ORANGE_DARK    0.871f,  0.576f,  0.373f
-#define ORANGE_LIGHT   0.941f,  0.776f,  0.455f
-#define GREEN_DARK     0.549f,  0.580f,  0.251f
-#define GREEN_LIGHT    0.710f,  0.741f,  0.408f
-#define BLUE_DARK      0.373f,  0.506f,  0.616f
+#define ORANGE_DARK    0.635f,  0.125f,  0.184f
+#define ORANGE_LIGHT   0.902f,  0.435f,  0.294f
+#define YELLOW_DARK    0.541f,  0.541f,  0.271f
+#define YELLOW_LIGHT   0.678f,  0.675f,  0.400f
+#define GREEN_DARK     0.227f,  0.490f,  0.227f
+#define GREEN_LIGHT    0.251f,  0.690f,  0.251f
+#define BLUE_DARK      0.294f,  0.400f,  0.490f
 #define BLUE_LIGHT     0.506f,  0.635f,  0.745f
-#define PINK_DARK      0.522f,  0.404f,  0.561f
-#define PINK_LIGHT     0.698f,  0.580f,  0.733f
+#define INDIGO_DARK    0.314f,  0.353f,  0.545f
+#define INDIGO_LIGHT   0.357f,  0.412f,  0.678f
+#define VIOLET_DARK    0.627f,  0.224f,  0.506f
+#define VIOLET_LIGHT   0.824f,  0.224f,  0.647f
 
 #define DB_MAX P_6_DB
 #define DB_MIN N_120_DB
 
 const char NOTES[12][3] = {"C\0", "C#\0", "D\0", "D#\0", "E\0", "F\0", "F#\0", "G\0", "G#\0", "A\0", "A#\0", "B\0"};
 
+const float COLORS[14][3] = {
+        {RED_DARK},
+        {RED_LIGHT},
+        {ORANGE_DARK},
+        {ORANGE_LIGHT},
+        {YELLOW_DARK},
+        {YELLOW_LIGHT},
+        {GREEN_DARK},
+        {GREEN_LIGHT},
+        {BLUE_DARK},
+        {BLUE_LIGHT},
+        {INDIGO_DARK},
+        {INDIGO_LIGHT},
+        {VIOLET_DARK},
+        {VIOLET_LIGHT}
+};
+
 draw_ctx_t* init_draw_ctx( track_t* track, uint8_t scale )
 {
    draw_ctx_t* ctx = malloc( sizeof( draw_ctx_t ) );
    ctx->init = 0;
-   ctx->mousex = 0;
-   ctx->mousey = 0;
+   ctx->mousex = -2.0f;
+   ctx->mousey = -2.0f;
    ctx->width = 0;
    ctx->height = 0;
    ctx->scale = scale;
@@ -249,8 +269,10 @@ void draw_channel_spectrums( draw_ctx_t* ctx, track_t* track )
       glLineWidth( 3.0f );
       glBegin( GL_LINE_STRIP );
 
-      if ( ch == 0 ) glColor3f( BLUE_DARK );
-      else glColor3f( BLUE_LIGHT );
+      int colorOffset = (ch % 2 == 0) ? 0 : 1;
+      glColor3f( COLORS[track->color * 2 + colorOffset][0],
+                 COLORS[track->color * 2 + colorOffset][1],
+                 COLORS[track->color * 2 + colorOffset][2] );
 
       lx = -1.0f;
 
@@ -323,7 +345,7 @@ void init_draw( draw_ctx_t* ctx )
    e = FT_New_Face( freetype, "/usr/share/fonts/TTF/DejaVuSansMono.ttf", 0, &fontface );
    if ( e )
       DEBUG_PRINT( "Unable to load FreeType Font: %i\n", e );
-   FT_Set_Pixel_Sizes( fontface, 0, 8 * ctx->scale );
+   FT_Set_Pixel_Sizes( fontface, 0, 8u * ctx->scale );
 
    for ( GLubyte c = 0; c < 128; c++ )
    {

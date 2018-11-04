@@ -41,6 +41,7 @@ typedef struct {
    size_t frameSize;
    float sampleRate;
    kiss_fft_cfg kisscfg;
+   uint8_t color;
    float* window;
    channel_t* channels;
 } track_t;

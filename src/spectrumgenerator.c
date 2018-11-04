@@ -18,6 +18,7 @@ track_t* init_sample_data( size_t channelCount, float sampleRate, size_t frameSi
    data->channelCount = channelCount;
    data->frameSize = frameSize;
    data->sampleRate = sampleRate;
+   data->color = 0;
 
    data->window = malloc( frameSize * sizeof( float ) );
    window_hanning( data->window, frameSize );
