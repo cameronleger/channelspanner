@@ -1,11 +1,24 @@
 #ifndef CHANNELSPANNER_SPECTRUMDRAW_H
 #define CHANNELSPANNER_SPECTRUMDRAW_H
 
+#include <GL/gl.h>
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
 #include "spectrumgenerator.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+typedef struct {
+   int tex;
+   int w;
+   int h;
+   int x;
+   int y;
+   long offset;
+} character_t;
 
 typedef struct {
    size_t init;
@@ -15,6 +28,8 @@ typedef struct {
 
    int width;
    int height;
+
+   uint8_t scale;
 
    float fm; /* maximum frequncy to draw */
    size_t fs; /* count of frequency bins for drawing */
@@ -28,9 +43,14 @@ typedef struct {
    float sx; /* scaling factor for min/max freq range to lin range */
    float sy; /* scaling factor for min/max dB range to lin range */
 
+   character_t* characters;
+
+   GLuint program;
+   GLuint vao;
+   GLuint vbo;
 } draw_ctx_t;
 
-draw_ctx_t* init_draw_ctx( track_t* track );
+draw_ctx_t* init_draw_ctx( track_t* track, uint8_t scale );
 
 void free_draw_ctx( draw_ctx_t* ctx );
 

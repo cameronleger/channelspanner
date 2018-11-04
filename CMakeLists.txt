@@ -19,24 +19,28 @@ include_directories(dep/vstsdk)
 include_directories(src)
 
 add_library(GLEW STATIC dep/glew/src/glew.c)
+set_property(TARGET GLEW PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 add_library(LGLW STATIC dep/lglw/lglw_linux.c)
 find_package(X11 REQUIRED)
 find_package(OpenGL REQUIRED)
-target_link_libraries(LGLW ${X11_LIBRARIES} ${GL_LIBRARIES})
+target_link_libraries(LGLW OpenGL::GL ${X11_LIBRARIES})
+target_compile_definitions(LGLW PRIVATE LGLW_CONTEXT_ALLOW_USE_AFTER_FREE=y)
 
 add_library(KISSFFT STATIC dep/kissfft/kiss_fft.c)
-SET_TARGET_PROPERTIES(KISSFFT PROPERTIES
+set_target_properties(KISSFFT PROPERTIES
         CMAKE_C_FLAGS "{$CMAKE_C_FLAGS} -DUSE_SIMD"
         )
 
+find_package(Freetype REQUIRED)
+include_directories(${FREETYPE_INCLUDE_DIRS})
 add_library(ChannelSpanner SHARED
         src/plugin.cpp
         src/spectrumgenerator.c
         src/spectrumdraw.c
         )
-target_link_libraries(ChannelSpanner GLEW LGLW KISSFFT ${CMAKE_DL_LIBS} ${OPENGL_LIBRARIES})
-SET_TARGET_PROPERTIES(ChannelSpanner PROPERTIES
+target_link_libraries(ChannelSpanner LGLW KISSFFT GLEW OpenGL::GL ${CMAKE_DL_LIBS} ${FREETYPE_LIBRARIES})
+set_target_properties(ChannelSpanner PROPERTIES
         PREFIX ""
         LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin
         )

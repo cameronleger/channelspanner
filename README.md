@@ -1,14 +1,16 @@
 #Building
 See `dep/vstsdk` for instructions related to downloading and extracting the VST2SDK.
 
-Ensure that the submodules under `dep` are loaded.
-##Configure GLEW
+FreeType must be installed.
+
+Ensure that the submodules under `dep` are loaded:
+#####Configure GLEW
 ```
 cd dep/glew
 make extensions
 make
 ```
-##Build ChannelSpanner
+###Build ChannelSpanner
 ChannelSpanner is built using CMake. You can simply run
 ```
 mkdir cmake-build-release
@@ -25,3 +27,10 @@ cmake -DCMAKE_BUILD_TYPE=Debug ..
 make
 ```
 Copy the resulting library file from `bin` to wherever you store your VSTs.
+
+#Credits
+- FreeType
+- GLEW
+- KISSFFT
+- LGLW
+- Steinberg VST SDK

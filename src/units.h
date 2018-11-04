@@ -31,4 +31,6 @@
 #define DBTOGAIN(x) (expf( (x) * M_LN10 * 0.05f ))
 #define GAINTODB(x) (20.0f * log10f(x))
 
+#define C0 16.3516f
+
 #endif //CHANNELSPANNER_UNITS_H

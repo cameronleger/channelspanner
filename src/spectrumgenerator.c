@@ -115,7 +115,7 @@ void process_samples( track_t* track, float reactivity )
 
       for ( int i = 0; i < fftSize; i++ )
       {
-         fft[i] = sqrtf( (fftResult[i].r * fftResult[i].r + fftResult[i].i * fftResult[i].i) ) / ( track->frameSize / 4 );
+         fft[i] = sqrtf( (fftResult[i].r * fftResult[i].r + fftResult[i].i * fftResult[i].i) ) / track->frameSize;
 
 //         if ( i % 16 == 0 )
 //            DEBUG_PRINT( "%5i i %12.2f Hz %12.6f g %8.2f dB\n", i, i * df, c->fft[i], GAINTODB( c->fftResult[i] ) );

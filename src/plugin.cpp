@@ -96,7 +96,7 @@ public:
    void initTrack()
    {
       track = init_sample_data( (size_t) getNumInputs(), sampleRate, FFT_SIZER(fftResolution) );
-      ctx = init_draw_ctx( track );
+      ctx = init_draw_ctx( track, windowScale );
    }
 
    void freeTrack()
@@ -587,6 +587,11 @@ static void loc_mouse_cbk( lglw_t _lglw, int32_t _x, int32_t _y, uint32_t _butto
 
 static void loc_focus_cbk( lglw_t _lglw, uint32_t _focusState, uint32_t _changedFocusState )
 {
+   if ( _focusState == 0 )
+   {
+      auto* wrapper = (VSTPluginWrapper*) lglw_userdata_get( _lglw );
+      wrapper->setMousePosition( 0, 0 );
+   }
 }
 
 static lglw_bool_t loc_keyboard_cbk( lglw_t _lglw, uint32_t _vkey, uint32_t _kmod, lglw_bool_t _bPressed )
