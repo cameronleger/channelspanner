@@ -181,7 +181,7 @@ public:
       case 0:
          return (float)fftResolution / FFT_MAX;
       case 1:
-         return reactivity;
+         return sqrtf( reactivity );
       case 2:
          return (float)(windowScale - 1) / RESOLUTION_MAX;
       }
@@ -202,7 +202,7 @@ public:
          break;
       }
       case 1:
-         reactivity = value;
+         reactivity = value * value;
          break;
       case 2:
       {
