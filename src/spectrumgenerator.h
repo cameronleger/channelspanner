@@ -30,23 +30,19 @@ extern "C" {
 
 typedef struct {
    size_t head;
-   size_t sampleCount;
-   size_t hasFFT;
-   float* samples;
-   float* fft;
+   float samples[MAX_FFT];
+   float fft[MAX_FFT / 2 + 1];
 } channel_t;
 
 typedef struct {
-   size_t channelCount;
    size_t frameSize;
-   float sampleRate;
    kiss_fft_cfg kisscfg;
    uint8_t color;
+   channel_t channels[MAX_CHANNELS];
    float* window;
-   channel_t* channels;
 } track_t;
 
-track_t* init_sample_data( size_t channelCount, float sampleRate, size_t frameSize );
+track_t* init_sample_data( size_t frameSize );
 
 void free_sample_data( track_t* track );
 

@@ -12,7 +12,7 @@ extern "C" {
 #endif
 
 typedef struct {
-   int tex;
+   uint tex;
    int w;
    int h;
    int x;
@@ -31,7 +31,7 @@ typedef struct {
 
    uint8_t scale;
 
-   float fm; /* maximum frequncy to draw */
+   float fm; /* maximum frequency to draw */
    size_t fs; /* count of frequency bins for drawing */
 
    float dl; /* delta for line-width changes, in lin units */
@@ -50,13 +50,11 @@ typedef struct {
    GLuint vbo;
 } draw_ctx_t;
 
-draw_ctx_t* init_draw_ctx( track_t* track, uint8_t scale );
+draw_ctx_t* init_draw_ctx( track_t* track, uint8_t scale, float sampleRate );
 
 void free_draw_ctx( draw_ctx_t* ctx );
 
 void set_mouse( draw_ctx_t* ctx, int32_t mousex, int32_t mousey );
-
-void init_draw( draw_ctx_t* ctx );
 
 void draw( draw_ctx_t* ctx, track_t* track );
 

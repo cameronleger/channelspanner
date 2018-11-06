@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #ifndef CHANNELSPANNER_LOGGING_H
 #define CHANNELSPANNER_LOGGING_H
 
@@ -8,7 +10,20 @@
 #ifdef NDEBUG
 #define DEBUG_PRINT( fmt, args... ) /* Don't do anything in release builds */
 #else
-#define DEBUG_PRINT( fmt, args... ) fprintf(stderr, "DEBUG: %s:%d:%s(): " fmt, __FILENAME__, __LINE__, __func__, ##args)
+
+static FILE *logFile;
+
+
+#define DEBUG_PRINT( fmt, args... )                        \
+{                                                          \
+   if (NULL == logFile)                                    \
+      logFile = fopen("/tmp/channelspanner_log.txt", "a"); \
+   fprintf(logFile, "DEBUG: %s:%d:%s(): " fmt,             \
+      __FILENAME__, __LINE__, __func__, ##args);           \
+   fflush(logFile);                                        \
+   fprintf(stderr, "DEBUG: %s:%d:%s(): " fmt,              \
+      __FILENAME__, __LINE__, __func__, ##args);           \
+}
 #endif
 
 #endif //CHANNELSPANNER_LOGGING_H

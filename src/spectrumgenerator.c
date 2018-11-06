@@ -2,40 +2,32 @@
 
 #include "logging.h"
 #include "spectrumgenerator.h"
-#include "units.h"
 
 void window_hanning( float* samples, size_t sampleCount )
 {
    for ( int i = 0; i < sampleCount; i++ )
    {
-      samples[i] = 0.5f * (1.0f - cosf( 2.0f * M_PI * i / (sampleCount - 1.0f) ));
+      samples[i] = 0.5f * (1.0f - cosf( 2.0f * (float)M_PI * i / (sampleCount - 1.0f) ));
    }
 }
 
-track_t* init_sample_data( size_t channelCount, float sampleRate, size_t frameSize )
+track_t* init_sample_data( size_t frameSize )
 {
-   track_t* data = malloc( sizeof( track_t ) + sizeof( channel_t[channelCount] ) );
-   data->channelCount = channelCount;
+   track_t* data = malloc( sizeof( track_t ) );
    data->frameSize = frameSize;
-   data->sampleRate = sampleRate;
    data->color = 0;
 
    data->window = malloc( frameSize * sizeof( float ) );
    window_hanning( data->window, frameSize );
 
    data->kisscfg = kiss_fft_alloc( (int) frameSize, 0, 0, 0 );
-   data->channels = calloc( (size_t) channelCount, sizeof( channel_t ) );
 
-   for ( size_t i = 0; i < channelCount; i++ )
+   for ( int i = 0; i < MAX_CHANNELS; i++ )
    {
-      data->channels[i].samples = malloc( frameSize * sizeof( float ) );
-      data->channels[i].fft = malloc( (frameSize / 2 + 1) * sizeof( float ) );
       data->channels[i].head = 0;
-      data->channels[i].sampleCount = 0;
-      data->channels[i].hasFFT = 0;
    }
 
-   DEBUG_PRINT( "Setup SampleData: %zu channels x (%zu samples + %zu fftSamples)\n", data->channelCount, data->frameSize, (frameSize / 2 + 1) );
+   DEBUG_PRINT( "Setup SampleData: %i channels x (%i samples + %i fftSamples) at %p\n", MAX_CHANNELS, MAX_FFT, (MAX_FFT / 2 + 1), data );
    return data;
 }
 
@@ -43,21 +35,13 @@ void free_sample_data( track_t* track )
 {
    if ( NULL == track ) return;
 
-   for ( size_t i = 0; i < track->channelCount; i++ )
-   {
-      free( track->channels[i].samples );
-      track->channels[i].samples = NULL;
-      free( track->channels[i].fft );
-      track->channels[i].fft = NULL;
-   }
+   DEBUG_PRINT( "Destroying SampleData at %p\n", track );
 
    kiss_fft_free( track->kisscfg );
    track->kisscfg = NULL;
 
-   free( track->channels );
+   free( track->window );
    free( track );
-
-   DEBUG_PRINT( "Destroyed SampleData\n" );
 }
 
 void add_sample_data( track_t* track, size_t channel, const float* samples, size_t sampleCount )
@@ -70,8 +54,6 @@ void add_sample_data( track_t* track, size_t channel, const float* samples, size
    {
       c->samples[c->head] = samples[i];
       c->head = (c->head + 1) % track->frameSize;
-      if ( c->sampleCount < track->frameSize )
-         c->sampleCount += 1;
    }
 }
 
@@ -93,15 +75,9 @@ void process_samples( track_t* track, float reactivity )
    kiss_fft_cpx fftResult[track->frameSize];
    float fft[fftSize];
 
-   for ( size_t ch = 0; ch < track->channelCount; ch++ )
+   for ( size_t ch = 0; ch < MAX_CHANNELS; ch++ )
    {
       channel_t* c = &track->channels[ch];
-      if ( c->sampleCount < track->frameSize )
-      {
-         c->hasFFT = 0;
-         DEBUG_PRINT( "Ignoring channel %zu with %zu < %zu samples\n", ch, c->sampleCount, track->frameSize );
-         continue;
-      }
 
       for ( int i = 0; i < track->frameSize; i++ )
       {
@@ -123,8 +99,6 @@ void process_samples( track_t* track, float reactivity )
       }
 
       mix( fft, c->fft, reactivity, 1.0f - reactivity, fftSize );
-
-      c->hasFFT = 1;
 
 //      DEBUG_PRINT( "Processed %zu samples for channel %zu\n", track->frameSize, ch );
    }

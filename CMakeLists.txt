@@ -38,8 +38,9 @@ add_library(ChannelSpanner SHARED
         src/plugin.cpp
         src/spectrumgenerator.c
         src/spectrumdraw.c
+        src/spanner_linux.c
         )
-target_link_libraries(ChannelSpanner LGLW KISSFFT GLEW OpenGL::GL ${CMAKE_DL_LIBS} ${FREETYPE_LIBRARIES})
+target_link_libraries(ChannelSpanner rt LGLW KISSFFT GLEW OpenGL::GL ${CMAKE_DL_LIBS} ${FREETYPE_LIBRARIES})
 set_target_properties(ChannelSpanner PROPERTIES
         PREFIX ""
         LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin

@@ -1,5 +1,6 @@
 #include <cstdio>
-#include <math.h>
+#include <cmath>
+#include <cassert>
 #include <X11/Xlib.h>
 #include <X11/Xos.h>
 
@@ -15,8 +16,8 @@
 
 #define RESOLUTION_MAX 4
 
-#define FFT_MAX 5
-#define FFT_SIZER(r) (256 * (uint)exp2f(r))
+uint MAX_FFT_SCALE = (uint)log2( MAX_FFT ) - 8;
+#define FFT_SCALER(r) (256 * (uint)exp2f(r))
 
 #define COLOR_MAX 6
 
@@ -50,7 +51,7 @@ public:
    lglw_t lglw;
 
    float sampleRate = 44100.0f;
-   uint8_t fftResolution = 1;
+   uint8_t fftScale = 1;
    float reactivity = 0.25f;
    uint8_t windowScale = 1;
    uint8_t color = 0;
@@ -98,9 +99,9 @@ public:
 
    void initTrack()
    {
-      track = init_sample_data( (size_t) getNumInputs(), sampleRate, FFT_SIZER(fftResolution) );
+      track = init_sample_data( FFT_SCALER(fftScale) );
       track->color = color;
-      ctx = init_draw_ctx( track, windowScale );
+      ctx = init_draw_ctx( track, windowScale, sampleRate );
    }
 
    void freeTrack()
@@ -155,7 +156,6 @@ public:
       // Save host GL context
       lglw_glcontext_push( lglw );
 
-      if ( ctx->init == 0 ) init_draw( ctx );
       draw( ctx, track );
 
       lglw_swap_buffers( lglw );
@@ -171,8 +171,10 @@ public:
 
    void setSampleRate( float _rate )
    {
+      int reset = 0;
+      if ( sampleRate != _rate ) reset = 1;
       sampleRate = _rate;
-      resetTrack();
+      if ( reset == 1 ) resetTrack();
    }
 
    float getParameter( int uniqueParamId )
@@ -183,13 +185,13 @@ public:
          DEBUG_PRINT( "Unused Parameter Request: %i\n", uniqueParamId );
          return 0;
       case 0:
-         return (float)fftResolution / FFT_MAX;
+         return (float) fftScale / MAX_FFT_SCALE;
       case 1:
          return sqrtf( reactivity );
       case 2:
-         return (float)color / COLOR_MAX;
+         return (float) color / COLOR_MAX;
       case 3:
-         return (float)(windowScale - 1) / RESOLUTION_MAX;
+         return (float) (windowScale - 1) / RESOLUTION_MAX;
       }
    }
 
@@ -202,8 +204,8 @@ public:
          break;
       case 0:
       {
-         fftResolution = (uint8_t) roundf( value * FFT_MAX );
-         if ( track->frameSize != FFT_SIZER( fftResolution ) )
+         fftScale = (uint8_t) roundf( value * MAX_FFT_SCALE );
+         if ( track->frameSize != FFT_SCALER( fftScale ) )
             resetTrack();
          break;
       }
@@ -224,9 +226,9 @@ public:
          {
             editor_rect.left = 0;
             editor_rect.top = 0;
-            editor_rect.right = (VstInt16)(EDITWIN_W * windowScale);
-            editor_rect.bottom = (VstInt16)(EDITWIN_H * windowScale);
-            (void)lglw_window_resize(lglw, editor_rect.right, editor_rect.bottom);
+            editor_rect.right = (VstInt16) (EDITWIN_W * windowScale);
+            editor_rect.bottom = (VstInt16) (EDITWIN_H * windowScale);
+            (void) lglw_window_resize( lglw, editor_rect.right, editor_rect.bottom );
             resetTrack();
          }
          break;
@@ -264,7 +266,7 @@ public:
          DEBUG_PRINT( "Unused Parameter Value Request: %i\n", uniqueParamId );
          break;
       case 0:
-         ::snprintf( s, sMaxLen, "%i", FFT_SIZER(fftResolution) );
+         ::snprintf( s, sMaxLen, "%i", FFT_SCALER(fftScale) );
          break;
       case 1:
          ::snprintf( s, sMaxLen, "%.2f", reactivity );
@@ -286,7 +288,7 @@ public:
          DEBUG_PRINT( "Unused Parameter Unit Request: %i\n", uniqueParamId );
          break;
       case 0:
-         ::strncpy( s, "x", sMaxLen );
+         ::strncpy( s, "", sMaxLen );
          break;
       case 1:
          ::strncpy( s, "%", sMaxLen );
@@ -297,6 +299,79 @@ public:
       case 3:
          ::strncpy( s, "x", sMaxLen );
          break;
+      }
+   }
+
+   int getParameterProperties( int uniqueParamId, VstParameterProperties* prop )
+   {
+      switch ( uniqueParamId )
+      {
+      default:
+         DEBUG_PRINT( "Unused Parameter Property Request: %i\n", uniqueParamId );
+         return 0;
+      case 0:
+         prop->stepFloat = 1.0f / MAX_FFT_SCALE;
+         prop->smallStepFloat = 1.0f / MAX_FFT_SCALE;
+         prop->largeStepFloat = 1.0f / MAX_FFT_SCALE;
+
+         ::strncpy( prop->label, "FFT Size", kVstMaxLabelLen );
+         ::strncpy( prop->shortLabel, "FFT Sz", kVstMaxShortLabelLen );
+
+         prop->displayIndex = 0;
+         prop->category = 1;
+         prop->numParametersInCategory = 4;
+
+         ::strncpy( prop->categoryLabel, "Channel Spanner", kVstMaxCategLabelLen );
+
+         prop->flags = kVstParameterUsesFloatStep | kVstParameterSupportsDisplayIndex | kVstParameterSupportsDisplayCategory;
+         return 1;
+
+      case 1:
+         ::strncpy( prop->label, "Speed", kVstMaxLabelLen );
+         ::strncpy( prop->shortLabel, "Speed", kVstMaxShortLabelLen );
+
+         prop->displayIndex = 1;
+         prop->category = 1;
+         prop->numParametersInCategory = 4;
+
+         ::strncpy( prop->categoryLabel, "Channel Spanner", kVstMaxCategLabelLen );
+
+         prop->flags = kVstParameterSupportsDisplayIndex | kVstParameterSupportsDisplayCategory;
+         return 1;
+
+      case 2:
+         prop->stepFloat = 1.0f / COLOR_MAX;
+         prop->smallStepFloat = 1.0f / COLOR_MAX;
+         prop->largeStepFloat = 1.0f / COLOR_MAX;
+
+         ::strncpy( prop->label, "Color", kVstMaxLabelLen );
+         ::strncpy( prop->shortLabel, "Color", kVstMaxShortLabelLen );
+
+         prop->displayIndex = 2;
+         prop->category = 1;
+         prop->numParametersInCategory = 4;
+
+         ::strncpy( prop->categoryLabel, "Channel Spanner", kVstMaxCategLabelLen );
+
+         prop->flags = kVstParameterUsesFloatStep | kVstParameterSupportsDisplayIndex | kVstParameterSupportsDisplayCategory;
+         return 1;
+
+      case 3:
+         prop->stepFloat = 1.0f / RESOLUTION_MAX;
+         prop->smallStepFloat = 1.0f / RESOLUTION_MAX;
+         prop->largeStepFloat = 1.0f / RESOLUTION_MAX;
+
+         ::strncpy( prop->label, "Window Size", kVstMaxLabelLen );
+         ::strncpy( prop->shortLabel, "WnSize", kVstMaxShortLabelLen );
+
+         prop->displayIndex = 3;
+         prop->category = 1;
+         prop->numParametersInCategory = 4;
+
+         ::strncpy( prop->categoryLabel, "Channel Spanner", kVstMaxCategLabelLen );
+
+         prop->flags = kVstParameterUsesFloatStep | kVstParameterSupportsDisplayIndex | kVstParameterSupportsDisplayCategory;
+         return 1;
       }
    }
 
@@ -320,11 +395,11 @@ extern "C" {
 void VSTPluginProcessSamplesFloat32( AEffect* vstPlugin, float** inputs, float** outputs, VstInt32 sampleFrames )
 {
    auto* wrapper = static_cast<VSTPluginWrapper*>(vstPlugin->object);
-//   DEBUG_PRINT( "Processing %i sample frames\n", sampleFrames );
+   DEBUG_PRINT( "Processing %i sample frames for %i inputs (max %i)\n", sampleFrames, wrapper->getNumInputs(), MAX_CHANNELS );
 
    track_t* track = wrapper->getTrack();
 
-   for ( int i = 0; i < wrapper->getNumInputs(); i++ )
+   for ( int i = 0; i < wrapper->getNumInputs() && i < MAX_CHANNELS; i++ )
    {
       auto inputSamples = inputs[i];
       auto outputSamples = outputs[i];
@@ -360,40 +435,49 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
       break;
 
    case effGetPlugCategory:
+      DEBUG_PRINT( "effGetPlugCategory\n" );
       return kPlugCategEffect;
 
    case effOpen:
+      DEBUG_PRINT( "effOpen\n" );
       r = wrapper->openEffect();
       break;
 
    case effClose:
+      DEBUG_PRINT( "effClose\n" );
       wrapper->closeEffect();
       delete wrapper;
       break;
 
    case effGetEffectName:
+      DEBUG_PRINT( "effGetEffectName\n" );
       ::strncpy( (char*) ptr, "Channel Spanner", kVstMaxEffectNameLen );
       r = 1;
       break;
 
    case effGetProductString:
+      DEBUG_PRINT( "effGetProductString\n" );
       ::strncpy( (char*) ptr, "Channel Spanner", kVstMaxProductStrLen );
       r = 1;
       break;
 
    case effGetVendorString:
+      DEBUG_PRINT( "effGetVendorString\n" );
       ::strncpy( static_cast<char*>(ptr), "Cameron Leger", kVstMaxVendorStrLen );
       r = 1;
       break;
 
    case effGetVendorVersion:
+      DEBUG_PRINT( "effGetVendorVersion\n" );
       return PLUGIN_VERSION;
 
    case effGetNumMidiInputChannels:
+      DEBUG_PRINT( "effGetNumMidiInputChannels\n" );
       r = 16;
       break;
 
    case effGetNumMidiOutputChannels:
+      DEBUG_PRINT( "effGetNumMidiOutputChannels\n" );
       r = 0;
       break;
 
@@ -439,6 +523,11 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
          r = 0;
       break;
 
+   case effGetTailSize:
+//      DEBUG_PRINT( "effGetTailSize\n" );
+      r = 1;
+      break;
+
    case effGetInputProperties:
       DEBUG_PRINT( "effGetInputProperties\n" );
       {
@@ -466,6 +555,7 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
       break;
 
    case effSetSampleRate:
+      DEBUG_PRINT( "effSetSampleRate\n" );
       wrapper->setSampleRate( opt );
       r = 1;
       break;
@@ -481,41 +571,50 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
       break;
 
    case effSetProgram:
+      DEBUG_PRINT( "effSetProgram\n" );
       r = 1;
       break;
 
    case effGetProgram:
+//      DEBUG_PRINT( "effGetProgram\n" );
       r = 0;
       break;
 
    case effGetProgramName:
+      DEBUG_PRINT( "effGetProgramName\n" );
       ::snprintf( (char*) ptr, kVstMaxProgNameLen, "default" );
       r = 1;
       break;
 
    case effSetProgramName:
+      DEBUG_PRINT( "effSetProgramName\n" );
       r = 1;
       break;
 
    case effGetProgramNameIndexed:
+      DEBUG_PRINT( "effGetProgramNameIndexed\n" );
       ::sprintf( (char*) ptr, "default" );
       r = 1;
       break;
 
    case effGetParamName:
+      DEBUG_PRINT( "effGetParamName\n" );
       wrapper->getParameterName( index, (char*) ptr, kVstMaxParamStrLen );
       r = 1;
       break;
 
    case effGetParamLabel:
+      DEBUG_PRINT( "effGetParamLabel\n" );
       wrapper->getParameterUnits( index, (char*) ptr, kVstMaxParamStrLen );
       break;
 
    case effGetParamDisplay:
+      DEBUG_PRINT( "effGetParamDisplay\n" );
       wrapper->getParameterValue( index, (char*) ptr, kVstMaxParamStrLen );
       break;
 
    case effCanBeAutomated:
+      DEBUG_PRINT( "effCanBeAutomated\n" );
       r = 1;
       break;
 
@@ -530,6 +629,7 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
       break;
 
    case effEditIdle:
+      DEBUG_PRINT( "effEditIdle\n" );
       if ( lglw_window_is_visible( wrapper->lglw ) )
       {
          lglw_events( wrapper->lglw );
@@ -542,6 +642,7 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
       break;
 
    case effEditGetRect:
+      DEBUG_PRINT( "effEditGetRect\n" );
       if ( nullptr != ptr )
       {
          wrapper->editor_rect.left = 0;
@@ -558,13 +659,41 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
       break;
 
    case effEditOpen:
+      DEBUG_PRINT( "effEditOpen\n" );
       wrapper->openEditor( ptr );
       r = 1;
       break;
 
    case effEditClose:
+      DEBUG_PRINT( "effEditClose\n" );
       wrapper->closeEditor();
       r = 1;
+      break;
+
+   case effGetParameterProperties:
+      DEBUG_PRINT( "effGetParameterProperties\n" );
+      r = wrapper->getParameterProperties( index, (VstParameterProperties*) ptr );
+      break;
+
+   case effGetMidiKeyName:
+//      DEBUG_PRINT( "effGetMidiKeyName\n" );
+      r = 0;
+      break;
+
+   case effBeginSetProgram:
+      DEBUG_PRINT( "effBeginSetProgram\n" );
+      break;
+
+   case effEndSetProgram:
+      DEBUG_PRINT( "effEndSetProgram\n" );
+      break;
+
+   case effBeginLoadBank:
+      DEBUG_PRINT( "effBeginLoadBank\n" );
+      break;
+
+   case effBeginLoadProgram:
+      DEBUG_PRINT( "effBeginLoadProgram\n" );
       break;
 
    }
@@ -576,7 +705,7 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
 extern "C" {
 void VSTPluginSetParameter( AEffect* vstPlugin, VstInt32 index, float parameter )
 {
-   DEBUG_PRINT( "VSTPluginSetParameter\n" );
+   DEBUG_PRINT( "VSTPluginSetParameter: %i = %f\n", index, parameter );
    auto* wrapper = static_cast<VSTPluginWrapper*>(vstPlugin->object);
    wrapper->setParameter( index, parameter );
 }
@@ -585,7 +714,7 @@ void VSTPluginSetParameter( AEffect* vstPlugin, VstInt32 index, float parameter 
 extern "C" {
 float VSTPluginGetParameter( AEffect* vstPlugin, VstInt32 index )
 {
-   DEBUG_PRINT( "VSTPluginGetParameter\n" );
+   DEBUG_PRINT( "VSTPluginGetParameter: %i\n", index );
    auto* wrapper = static_cast<VSTPluginWrapper*>(vstPlugin->object);
    return wrapper->getParameter( index );
 }
@@ -678,7 +807,6 @@ VSTPluginWrapper::VSTPluginWrapper( audioMasterCallback vstHostCallback,
 
    track = nullptr;
    ctx = nullptr;
-   initTrack();
 }
 
 VSTPluginWrapper::~VSTPluginWrapper()
@@ -692,14 +820,22 @@ VSTPluginMain( audioMasterCallback
                vstHostCallback )
 {
    DEBUG_PRINT( "Debugging is enabled...\n" );
+
+   assert( MAX_FFT > 0 );
+   assert( MAX_FFT % 256 == 0 );
+   assert( MAX_CHANNELS > 0 );
+
+   DEBUG_PRINT( "Max FFT Size: %i\n", MAX_FFT );
+   DEBUG_PRINT( "Max Channels: %i\n", MAX_CHANNELS );
+
    auto* plugin =
            new VSTPluginWrapper( vstHostCallback,
                                  CCONST( 't', 'e', 's', 't' ), // unregistered
                                  PLUGIN_VERSION,
-                                 4,    // params
-                                 0,    // programs
-                                 2,    // inputs
-                                 2 );  // outputs
+                                 4, // params
+                                 0, // programs
+                                 MAX_CHANNELS,   // inputs
+                                 MAX_CHANNELS ); // outputs
 
    return plugin->getVSTPlugin();
 }

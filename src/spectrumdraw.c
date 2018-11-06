@@ -50,7 +50,7 @@ const float COLORS[14][3] = {
         {VIOLET_LIGHT}
 };
 
-draw_ctx_t* init_draw_ctx( track_t* track, uint8_t scale )
+draw_ctx_t* init_draw_ctx( track_t* track, uint8_t scale, float sampleRate )
 {
    draw_ctx_t* ctx = malloc( sizeof( draw_ctx_t ) );
    ctx->init = 0;
@@ -60,10 +60,10 @@ draw_ctx_t* init_draw_ctx( track_t* track, uint8_t scale )
    ctx->height = 0;
    ctx->scale = scale;
 
-   ctx->fm = track->sampleRate / 2.0f;
+   ctx->fm = sampleRate / 2.0f;
    ctx->fs = track->frameSize / 2 + 1;
    ctx->dl = 0.1f;
-   ctx->df = track->sampleRate / track->frameSize;
+   ctx->df = sampleRate / track->frameSize;
    ctx->ox = 1.0f / SPECTRUM_FREQUENCY_MIN;
    ctx->oy = 1.0f / DB_MIN;
    ctx->sx = 2.0f / (logf( ctx->fm ) - logf( SPECTRUM_FREQUENCY_MIN ));
@@ -90,7 +90,7 @@ void set_mouse( draw_ctx_t* ctx, int32_t mousex, int32_t mousey )
    ctx->mousey = (float) (ctx->height - mousey) / ctx->height * 2 - 1;
 }
 
-void draw_text( draw_ctx_t* ctx, char* c, size_t charCount, float _x, float _y, float sx, float sy, float r, float g, float b, int halign, int valign )
+void draw_text( draw_ctx_t* ctx, const char* c, size_t charCount, float _x, float _y, float sx, float sy, float r, float g, float b, int halign, int valign )
 {
    glUseProgram( ctx->program );
    glUniform3f( glGetUniformLocation( ctx->program, "textColor" ), r, g, b );
@@ -260,11 +260,9 @@ void draw_channel_spectrums( draw_ctx_t* ctx, track_t* track )
    float x, y, lx, a, b;
 
    channel_t* channel;
-   for ( int ch = 0; ch < track->channelCount; ch++ )
+   for ( int ch = 0; ch < MAX_CHANNELS; ch++ )
    {
       channel = &track->channels[ch];
-
-      if ( channel->hasFFT == 0 ) continue;
 
       glLineWidth( 3.0f );
       glBegin( GL_LINE_STRIP );
@@ -406,6 +404,8 @@ void draw( draw_ctx_t* ctx, track_t* track )
 {
    if ( NULL == ctx ) return;
    if ( NULL == track ) return;
+
+   if ( ctx-> init == 0 ) init_draw( ctx );
 
    glClearColor( BLACK, 1.0 );
    glClear( GL_COLOR_BUFFER_BIT );
