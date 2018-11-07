@@ -1,7 +1,7 @@
 #Building
 See `dep/vstsdk` for instructions related to downloading and extracting the VST2SDK.
 
-FreeType must be installed.
+FreeType and Jansson must be installed including their development headers.
 
 Ensure that the submodules under `dep` are loaded:
 #####Configure GLEW

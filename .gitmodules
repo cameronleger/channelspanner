@@ -6,7 +6,4 @@
 	url = https://github.com/bsp2/lglw
 [submodule "dep/kissfft"]
 	path = dep/kissfft
-	url = https://github.com/marton78/kissfft
-[submodule "dep/kissfft"]
-	path = dep/kissfft
 	url = https://github.com/mborgerding/kissfft

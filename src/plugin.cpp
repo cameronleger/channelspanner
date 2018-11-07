@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cmath>
 #include <cassert>
+#include <jansson.h>
 #include <X11/Xlib.h>
 #include <X11/Xos.h>
 
@@ -53,8 +54,8 @@ public:
    float sampleRate = 44100.0f;
    uint8_t fftScale = 1;
    float reactivity = 0.25f;
-   uint8_t windowScale = 1;
    uint8_t color = 0;
+   uint8_t windowScale = 1;
 
    uint32_t redraw_ival_ms = 1000 / 60;
 //   uint32_t redraw_ival_ms = 0;
@@ -95,6 +96,11 @@ public:
    {
       closeEditor();
       freeTrack();
+      if( nullptr != savedState )
+      {
+         ::free( savedState );
+         savedState = nullptr;
+      }
    }
 
    void initTrack()
@@ -375,11 +381,91 @@ public:
       }
    }
 
+   int getSavedState( uint8_t** _addr )
+   {
+      if ( nullptr != savedState )
+      {
+         ::free( savedState );
+         savedState = nullptr;
+      }
+
+      json_t* rootJ = json_object();
+
+      json_t* fts = json_integer( fftScale );
+      json_object_set_new( rootJ, "fftScale", fts );
+
+      json_t* rct = json_real( reactivity );
+      json_object_set_new( rootJ, "reactivity", rct );
+
+      json_t* col = json_integer( color );
+      json_object_set_new( rootJ, "color", col );
+
+      json_t* wns = json_integer( windowScale );
+      json_object_set_new( rootJ, "windowScale", wns );
+
+      savedState = json_dumps( rootJ, JSON_INDENT( 2 ) | JSON_REAL_PRECISION( 4 ) );
+      json_decref( rootJ );
+
+      DEBUG_PRINT( "Saving patch state: %s\n", savedState );
+
+      if ( nullptr != savedState )
+      {
+         *_addr = (uint8_t*) savedState;
+         return (int) strlen( savedState ) + 1/*ASCIIZ*/;
+      }
+      return 0;
+   }
+
+   int setSavedState( size_t _size, uint8_t* _addr )
+   {
+      int r;
+      json_error_t error;
+      json_t* rootJ = json_loads( (const char*) _addr, 0/*flags*/, &error );
+
+      if ( rootJ )
+      {
+         DEBUG_PRINT( "Loading patch state: %s\n", (const char*) _addr );
+
+         {
+            json_t* fts = json_object_get( rootJ, "fftScale" );
+            if ( fts ) fftScale = uint8_t( json_number_value( fts ) );
+         }
+
+         {
+            json_t* rct = json_object_get( rootJ, "reactivity" );
+            if ( rct ) reactivity = float( json_number_value( rct ) );
+         }
+
+         {
+            json_t* col = json_object_get( rootJ, "color" );
+            if ( col ) color = uint8_t( json_number_value( col ) );
+         }
+
+         {
+            json_t* wns = json_object_get( rootJ, "windowScale" );
+            if ( wns ) windowScale = uint8_t( json_number_value( wns ) );
+         }
+
+         json_decref( rootJ );
+
+         r = 1;
+      }
+      else
+      {
+         DEBUG_PRINT( "JSON parsing error at %s %d:%d %s\n", error.source, error.line, error.column, error.text );
+         r = 0;
+      }
+
+      if ( r == 1 ) resetTrack();
+      return r;
+   }
+
 private:
    audioMasterCallback _vstHostCallback;
    AEffect _vstPlugin;
    track_t* track = nullptr;
    draw_ctx_t* ctx = nullptr;
+   char* savedState = nullptr;
 };
 
 VSTPluginWrapper* VSTPluginWrapper::window_to_wrapper = nullptr;
@@ -571,7 +657,7 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
       break;
 
    case effSetProgram:
-      DEBUG_PRINT( "effSetProgram\n" );
+//      DEBUG_PRINT( "effSetProgram\n" );
       r = 1;
       break;
 
@@ -673,6 +759,16 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
    case effGetParameterProperties:
       DEBUG_PRINT( "effGetParameterProperties\n" );
       r = wrapper->getParameterProperties( index, (VstParameterProperties*) ptr );
+      break;
+
+   case effGetChunk:
+      DEBUG_PRINT( "effGetChunk\n" );
+      r = wrapper->getSavedState( (uint8_t**) ptr );
+      break;
+
+   case effSetChunk:
+      DEBUG_PRINT( "effSetChunk\n" );
+      r = wrapper->setSavedState( size_t( value ), (uint8_t*) ptr );
       break;
 
    case effGetMidiKeyName:
@@ -781,6 +877,7 @@ VSTPluginWrapper::VSTPluginWrapper( audioMasterCallback vstHostCallback,
 
    _vstPlugin.flags =
            effFlagsNoSoundInStop |
+           effFlagsProgramChunks |
            effFlagsCanReplacing |
            effFlagsHasEditor;
 

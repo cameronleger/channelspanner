@@ -34,14 +34,28 @@ set_target_properties(KISSFFT PROPERTIES
 
 find_package(Freetype REQUIRED)
 include_directories(${FREETYPE_INCLUDE_DIRS})
+
+find_path(JANSSON_INCLUDE_DIRS jansson.h
+        /usr/include /usr/local/include
+        )
+find_library(JANSSON_LIBRARIES NAMES jansson
+        PATHS /usr/lib /usr/local/lib
+        )
+
+include_directories(${JANSSON_INCLUDE_DIRS})
 add_library(ChannelSpanner SHARED
         src/plugin.cpp
         src/spectrumgenerator.c
         src/spectrumdraw.c
         src/spanner_linux.c
         )
-target_link_libraries(ChannelSpanner rt LGLW KISSFFT GLEW OpenGL::GL ${CMAKE_DL_LIBS} ${FREETYPE_LIBRARIES})
+target_link_libraries(ChannelSpanner rt LGLW KISSFFT GLEW OpenGL::GL ${FREETYPE_LIBRARIES} ${JANSSON_LIBRARIES} ${CMAKE_DL_LIBS})
 set_target_properties(ChannelSpanner PROPERTIES
         PREFIX ""
         LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin
+        )
+target_compile_definitions(ChannelSpanner PRIVATE
+        MAX_CHANNELS=2
+        MAX_FFT=8192
+        MAX_INSTANCES=2
         )
