@@ -50,7 +50,7 @@ const float COLORS[14][3] = {
         {VIOLET_LIGHT}
 };
 
-draw_ctx_t* init_draw_ctx( track_t* track, uint8_t scale, float sampleRate )
+draw_ctx_t* init_draw_ctx( uint8_t scale, float sampleRate )
 {
    draw_ctx_t* ctx = malloc( sizeof( draw_ctx_t ) );
    ctx->init = 0;
@@ -60,10 +60,9 @@ draw_ctx_t* init_draw_ctx( track_t* track, uint8_t scale, float sampleRate )
    ctx->height = 0;
    ctx->scale = scale;
 
+   ctx->sr = sampleRate;
    ctx->fm = sampleRate / 2.0f;
-   ctx->fs = track->frameSize / 2 + 1;
    ctx->dl = 0.1f;
-   ctx->df = sampleRate / track->frameSize;
    ctx->ox = 1.0f / SPECTRUM_FREQUENCY_MIN;
    ctx->oy = 1.0f / DB_MIN;
    ctx->sx = 2.0f / (logf( ctx->fm ) - logf( SPECTRUM_FREQUENCY_MIN ));
@@ -145,6 +144,7 @@ void draw_text( draw_ctx_t* ctx, const char* c, size_t charCount, float _x, floa
    glBindVertexArray( 0 );
    glBindTexture( GL_TEXTURE_2D, 0 );
    glUseProgram( 0 );
+   glDisable( GL_TEXTURE_2D );
 }
 
 void draw_mouse( draw_ctx_t* ctx )
@@ -252,12 +252,83 @@ void draw_grid( draw_ctx_t* ctx )
    glEnd();
 }
 
+void draw_shared_channel_spectrums( draw_ctx_t* ctx, shared_memory_t* shmem )
+{
+   if ( NULL == ctx ) return;
+   if ( NULL == shmem ) return;
+
+   spanned_track_t* tracks;
+   tracks = get_shared_memory_tracks( shmem );
+
+   if ( NULL == tracks ) return;
+
+   float x, y, lx, a, b, df;
+
+   for ( int t = 0; t < MAX_INSTANCES; t++ )
+   {
+      spanned_track_t* track = &tracks[t];
+      if ( is_this_track( shmem, track ) ) continue;
+      if ( 0 == track->id ) continue;
+
+      df = ctx->sr / track->frameSize;
+
+      for ( int ch = 0; ch < MAX_CHANNELS; ch++ )
+      {
+         glLineWidth( 3.0f );
+         glBegin( GL_LINE_STRIP );
+
+         int colorOffset = (ch % 2 == 0) ? 0 : 1;
+         glColor4f( COLORS[track->color * 2 + colorOffset][0],
+                    COLORS[track->color * 2 + colorOffset][1],
+                    COLORS[track->color * 2 + colorOffset][2],
+                    0.25f
+         );
+
+         lx = -1.0f;
+
+//       a = (max'-min')/(max-min) // or more simply (max'-min')
+//       b = (min' - (a * min)) ) // or more simply min' + a
+         a = (track->frameSize < 2048) ? 2.5f : 1.0f;
+         b = (track->frameSize < 2048) ? 3.0f : 1.5f;
+
+         for ( int i = 0; i < (track->frameSize >> 1) + 1; i++ )
+         {
+            x = ctx->sx * logf( i * df * ctx->ox ) - 1;
+            if ( i == 0 ) x = -1.0f;
+
+            y = ctx->sy * logf( track->fft[ch][i] * ctx->oy ) + 1;
+
+            if ( x >  1.0f ) x =  1.0f;
+            if ( x < -1.0f ) x = -1.0f;
+            if ( y >  1.0f ) y =  1.1f;
+            if ( y < -1.0f ) y = -1.1f;
+
+            if ( i != 0 && (x - lx) > ctx->dl )
+            {
+               glVertex2f( x, -y );
+               glEnd();
+               glLineWidth( a * -x + b );
+               glBegin( GL_LINE_STRIP );
+               lx = x;
+            }
+
+            glVertex2f( x, -y );
+//          if ( i % 16 == 0 )
+//             DEBUG_PRINT( "%5.2f x %5.2f : %6i i %12.2f Hz %12.6f g %8.2f dB\n", x, -y, i, i * df, channel->fft[i], GAINTODB(channel->fft[i]) );
+         }
+         glEnd();
+      }
+   }
+}
+
 void draw_channel_spectrums( draw_ctx_t* ctx, track_t* track )
 {
    if ( NULL == ctx ) return;
    if ( NULL == track ) return;
 
-   float x, y, lx, a, b;
+   float x, y, lx, a, b, df;
+
+   df = ctx->sr / track->frameSize;
 
    channel_t* channel;
    for ( int ch = 0; ch < MAX_CHANNELS; ch++ )
@@ -281,7 +352,7 @@ void draw_channel_spectrums( draw_ctx_t* ctx, track_t* track )
 
       for ( int i = 0; i < track->frameSize / 2 + 1; i++ )
       {
-         x = ctx->sx * logf( i * ctx->df * ctx->ox ) - 1;
+         x = ctx->sx * logf( i * df * ctx->ox ) - 1;
          if ( i == 0 ) x = -1.0f;
 
          y = ctx->sy * logf( channel->fft[i] * ctx->oy ) + 1;
@@ -400,7 +471,7 @@ void init_draw( draw_ctx_t* ctx )
    ctx->init = 1;
 }
 
-void draw( draw_ctx_t* ctx, track_t* track )
+void draw( draw_ctx_t* ctx, track_t* track, shared_memory_t* shmem )
 {
    if ( NULL == ctx ) return;
    if ( NULL == track ) return;
@@ -413,6 +484,8 @@ void draw( draw_ctx_t* ctx, track_t* track )
    draw_grid( ctx );
 
    draw_mouse( ctx );
+
+   draw_shared_channel_spectrums( ctx, shmem );
 
    draw_channel_spectrums( ctx, track );
 

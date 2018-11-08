@@ -29,6 +29,17 @@ extern "C" {
 // ignore 2nd half of bins
 
 typedef struct {
+   size_t frameSize;
+   size_t fftSize;
+   float frameSizeInv;
+   kiss_fft_cfg kisscfg;
+   float* window;
+   kiss_fft_cpx* fftOutput;
+   kiss_fft_cpx* samplesTmp;
+   float* fftTmp;
+} working_area_t;
+
+typedef struct {
    size_t head;
    float samples[MAX_FFT];
    float fft[MAX_FFT / 2 + 1];
@@ -36,15 +47,16 @@ typedef struct {
 
 typedef struct {
    size_t frameSize;
-   kiss_fft_cfg kisscfg;
    uint8_t color;
    channel_t channels[MAX_CHANNELS];
-   float* window;
+   working_area_t* wrk;
 } track_t;
 
 track_t* init_sample_data( size_t frameSize );
 
 void free_sample_data( track_t* track );
+
+void update_frame_size( track_t* track, size_t frameSize );
 
 void add_sample_data( track_t* track, size_t channel, const float* samples, size_t sampleCount );
 

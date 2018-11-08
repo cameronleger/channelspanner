@@ -11,13 +11,14 @@
 #include "lglw.h"
 #include "spectrumgenerator.h"
 #include "spectrumdraw.h"
+#include "spanner.h"
 
 #define EDITWIN_W 650
 #define EDITWIN_H 400
 
 #define RESOLUTION_MAX 4
 
-uint MAX_FFT_SCALE = (uint)log2( MAX_FFT ) - 8;
+uint FFT_SCALE_MAX = (uint)log2( MAX_FFT ) - 8;
 #define FFT_SCALER(r) (256 * (uint)exp2f(r))
 
 #define COLOR_MAX 6
@@ -47,8 +48,9 @@ class VSTPluginWrapper
 public:
    static VSTPluginWrapper* window_to_wrapper;
 
-   ERect editor_rect;
+   static long counter;
 
+   ERect editor_rect;
    lglw_t lglw;
 
    float sampleRate = 44100.0f;
@@ -59,6 +61,8 @@ public:
 
    uint32_t redraw_ival_ms = 1000 / 60;
 //   uint32_t redraw_ival_ms = 0;
+
+   int process = 1;
 
 public:
    VSTPluginWrapper( audioMasterCallback vstHostCallback,
@@ -89,12 +93,15 @@ public:
    int openEffect()
    {
       initTrack();
+      shmem = open_shared_memory( VSTPluginWrapper::counter++ );
       return 1;
    }
 
    void closeEffect()
    {
       closeEditor();
+      freeCtx();
+      close_shared_memory( shmem );
       freeTrack();
       if( nullptr != savedState )
       {
@@ -105,25 +112,47 @@ public:
 
    void initTrack()
    {
+      if ( nullptr != track )
+         freeTrack();
       track = init_sample_data( FFT_SCALER(fftScale) );
       track->color = color;
-      ctx = init_draw_ctx( track, windowScale, sampleRate );
+   }
+
+   void initCtx()
+   {
+      if ( nullptr != ctx )
+         freeCtx();
+      ctx = init_draw_ctx( windowScale, sampleRate );
    }
 
    void freeTrack()
    {
-      free_draw_ctx( ctx );
-      free_sample_data( track );
+      if ( nullptr != track )
+         free_sample_data( track );
+      track = nullptr;
    }
 
-   void resetTrack()
+   void freeCtx()
    {
-      freeTrack();
-      initTrack();
+      if ( nullptr != ctx )
+         free_draw_ctx( ctx );
+      ctx = nullptr;
+   }
+
+   void updateFFTSize()
+   {
+      update_frame_size( track, FFT_SCALER(fftScale) );
+   }
+
+   void updateTrack()
+   {
+      process_samples( track, reactivity );
+      update_shared_memory( shmem, track );
    }
 
    void openEditor( void* wnd )
    {
+      initCtx();
 
       (void) lglw_window_open( lglw, wnd, 0, 0, editor_rect.right, editor_rect.bottom );
 
@@ -162,7 +191,7 @@ public:
       // Save host GL context
       lglw_glcontext_push( lglw );
 
-      draw( ctx, track );
+      draw( ctx, track, shmem );
 
       lglw_swap_buffers( lglw );
 
@@ -177,10 +206,13 @@ public:
 
    void setSampleRate( float _rate )
    {
-      int reset = 0;
-      if ( sampleRate != _rate ) reset = 1;
       sampleRate = _rate;
-      if ( reset == 1 ) resetTrack();
+
+      if ( nullptr != ctx )
+      {
+         ctx->sr = sampleRate;
+         ctx->fm = sampleRate / 2.0f;
+      }
    }
 
    float getParameter( int uniqueParamId )
@@ -191,7 +223,7 @@ public:
          DEBUG_PRINT( "Unused Parameter Request: %i\n", uniqueParamId );
          return 0;
       case 0:
-         return (float) fftScale / MAX_FFT_SCALE;
+         return (float) fftScale / FFT_SCALE_MAX;
       case 1:
          return sqrtf( reactivity );
       case 2:
@@ -210,9 +242,9 @@ public:
          break;
       case 0:
       {
-         fftScale = (uint8_t) roundf( value * MAX_FFT_SCALE );
+         fftScale = (uint8_t) roundf( value * FFT_SCALE_MAX );
          if ( track->frameSize != FFT_SCALER( fftScale ) )
-            resetTrack();
+            updateFFTSize();
          break;
       }
       case 1:
@@ -234,8 +266,10 @@ public:
             editor_rect.top = 0;
             editor_rect.right = (VstInt16) (EDITWIN_W * windowScale);
             editor_rect.bottom = (VstInt16) (EDITWIN_H * windowScale);
+
+            freeCtx();
             (void) lglw_window_resize( lglw, editor_rect.right, editor_rect.bottom );
-            resetTrack();
+            initCtx();
          }
          break;
       }
@@ -316,9 +350,9 @@ public:
          DEBUG_PRINT( "Unused Parameter Property Request: %i\n", uniqueParamId );
          return 0;
       case 0:
-         prop->stepFloat = 1.0f / MAX_FFT_SCALE;
-         prop->smallStepFloat = 1.0f / MAX_FFT_SCALE;
-         prop->largeStepFloat = 1.0f / MAX_FFT_SCALE;
+         prop->stepFloat = 1.0f / FFT_SCALE_MAX;
+         prop->smallStepFloat = 1.0f / FFT_SCALE_MAX;
+         prop->largeStepFloat = 1.0f / FFT_SCALE_MAX;
 
          ::strncpy( prop->label, "FFT Size", kVstMaxLabelLen );
          ::strncpy( prop->shortLabel, "FFT Sz", kVstMaxShortLabelLen );
@@ -419,7 +453,7 @@ public:
    int setSavedState( size_t _size, uint8_t* _addr )
    {
       int r;
-      json_error_t error;
+      json_error_t error = {0};
       json_t* rootJ = json_loads( (const char*) _addr, 0/*flags*/, &error );
 
       if ( rootJ )
@@ -456,13 +490,18 @@ public:
          r = 0;
       }
 
-      if ( r == 1 ) resetTrack();
+      if ( r == 1 )
+      {
+         initTrack();
+         initCtx();
+      }
       return r;
    }
 
 private:
    audioMasterCallback _vstHostCallback;
    AEffect _vstPlugin;
+   shared_memory_t* shmem = nullptr;
    track_t* track = nullptr;
    draw_ctx_t* ctx = nullptr;
    char* savedState = nullptr;
@@ -490,15 +529,20 @@ void VSTPluginProcessSamplesFloat32( AEffect* vstPlugin, float** inputs, float**
       auto inputSamples = inputs[i];
       auto outputSamples = outputs[i];
 
-      add_sample_data( track, (size_t)i, inputSamples, (size_t)sampleFrames );
+      if ( 1 == wrapper->process )
+         add_sample_data( track, (size_t)i, inputSamples, (size_t)sampleFrames );
 
-      for ( int j = 0; j < sampleFrames; j++ )
+      if ( nullptr != inputSamples && nullptr != outputSamples && inputSamples != outputSamples )
       {
-         outputSamples[j] = inputSamples[j];
+         for ( int j = 0; j < sampleFrames; j++ )
+         {
+            outputSamples[j] = inputSamples[j];
+         }
       }
    }
 
-   process_samples( track, wrapper->reactivity );
+   if ( 1 == wrapper->process )
+      wrapper->updateTrack();
 }
 }
 
@@ -653,6 +697,7 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
 
    case effMainsChanged:
       DEBUG_PRINT( "effMainsChanged\n" );
+      wrapper->process = ( value == 0 ) ? 0 : 1;
       r = 1;
       break;
 
@@ -706,16 +751,18 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
 
    case effStartProcess:
       DEBUG_PRINT( "effStartProcess\n" );
+      wrapper->process = 1;
       r = 1;
       break;
 
    case effStopProcess:
       DEBUG_PRINT( "effStopProcess\n" );
+      wrapper->process = 0;
       r = 1;
       break;
 
    case effEditIdle:
-      DEBUG_PRINT( "effEditIdle\n" );
+//      DEBUG_PRINT( "effEditIdle\n" );
       if ( lglw_window_is_visible( wrapper->lglw ) )
       {
          lglw_events( wrapper->lglw );
@@ -819,21 +866,15 @@ float VSTPluginGetParameter( AEffect* vstPlugin, VstInt32 index )
 extern "C" {
 static void loc_mouse_cbk( lglw_t _lglw, int32_t _x, int32_t _y, uint32_t _buttonState, uint32_t _changedButtonState )
 {
+   (void)_buttonState;
+   (void)_changedButtonState;
    auto* wrapper = (VSTPluginWrapper*) lglw_userdata_get( _lglw );
    wrapper->setMousePosition( _x, _y );
-
-   if ( LGLW_IS_MOUSE_LBUTTON_DOWN() )
-   {
-      lglw_mouse_grab( _lglw, LGLW_MOUSE_GRAB_WARP );
-   }
-   else if ( LGLW_IS_MOUSE_LBUTTON_UP() )
-   {
-      lglw_mouse_ungrab( _lglw );
-   }
 }
 
 static void loc_focus_cbk( lglw_t _lglw, uint32_t _focusState, uint32_t _changedFocusState )
 {
+   (void)_changedFocusState;
    if ( _focusState == 0 )
    {
       auto* wrapper = (VSTPluginWrapper*) lglw_userdata_get( _lglw );
@@ -843,6 +884,10 @@ static void loc_focus_cbk( lglw_t _lglw, uint32_t _focusState, uint32_t _changed
 
 static lglw_bool_t loc_keyboard_cbk( lglw_t _lglw, uint32_t _vkey, uint32_t _kmod, lglw_bool_t _bPressed )
 {
+   (void)_lglw;
+   (void)_vkey;
+   (void)_kmod;
+   (void)_bPressed;
    return LGLW_FALSE;
 }
 
@@ -911,6 +956,8 @@ VSTPluginWrapper::~VSTPluginWrapper()
    lglw_exit( lglw );
 }
 
+long VSTPluginWrapper::counter = 100;
+
 extern AEffect
 *
 VSTPluginMain( audioMasterCallback
@@ -921,9 +968,11 @@ VSTPluginMain( audioMasterCallback
    assert( MAX_FFT > 0 );
    assert( MAX_FFT % 256 == 0 );
    assert( MAX_CHANNELS > 0 );
+   assert( MAX_INSTANCES > 0 );
 
-   DEBUG_PRINT( "Max FFT Size: %i\n", MAX_FFT );
-   DEBUG_PRINT( "Max Channels: %i\n", MAX_CHANNELS );
+   DEBUG_PRINT( " Max FFT Size: %i\n", MAX_FFT );
+   DEBUG_PRINT( " Max Channels: %i\n", MAX_CHANNELS );
+   DEBUG_PRINT( "Max Instances: %i\n", MAX_INSTANCES );
 
    auto* plugin =
            new VSTPluginWrapper( vstHostCallback,

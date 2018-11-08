@@ -57,5 +57,5 @@ set_target_properties(ChannelSpanner PROPERTIES
 target_compile_definitions(ChannelSpanner PRIVATE
         MAX_CHANNELS=2
         MAX_FFT=8192
-        MAX_INSTANCES=2
+        MAX_INSTANCES=16
         )

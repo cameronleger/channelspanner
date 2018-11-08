@@ -6,6 +6,7 @@
 #include FT_FREETYPE_H
 
 #include "spectrumgenerator.h"
+#include "spanner.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,11 +32,10 @@ typedef struct {
 
    uint8_t scale;
 
+   float sr; /* sample rate */
    float fm; /* maximum frequency to draw */
-   size_t fs; /* count of frequency bins for drawing */
 
    float dl; /* delta for line-width changes, in lin units */
-   float df; /* delta for frequency spacing, in lin units, based on bin widths */
 
    float ox; /* offset/minimum for frequency graphing */
    float oy; /* offset/minimum for dB graphing */
@@ -50,13 +50,13 @@ typedef struct {
    GLuint vbo;
 } draw_ctx_t;
 
-draw_ctx_t* init_draw_ctx( track_t* track, uint8_t scale, float sampleRate );
+draw_ctx_t* init_draw_ctx( uint8_t scale, float sampleRate );
 
 void free_draw_ctx( draw_ctx_t* ctx );
 
 void set_mouse( draw_ctx_t* ctx, int32_t mousex, int32_t mousey );
 
-void draw( draw_ctx_t* ctx, track_t* track );
+void draw( draw_ctx_t* ctx, track_t* track, shared_memory_t* shmem );
 
 #ifdef __cplusplus
 }
