@@ -2,9 +2,7 @@
 #define CHANNELSPANNER_SPECTRUMGENERATOR_H
 
 #include <stdint.h>
-#include <stdio.h>
-
-#include "kiss_fft.h"
+#include <fftw3.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,7 +11,7 @@ extern "C" {
 // sample rate = 44100
 // frame size = 2048
 
-// note: +1 for Nyquist Frequency in KISSFFT
+// note: +1 for Nyquist Frequency in "real-only" input
 // bins = frame size / 2
 // 1024 = 2048 / 2
 
@@ -24,18 +22,17 @@ extern "C" {
 // bin width = sample rate / frame size
 // 21.5Hz = 44100 / 2048
 
-// note: only 1st half of bins from KISSFFT
+// note: only 1st half of bins from "real-only" input
 // for bin != 0, bin *= 2
 // ignore 2nd half of bins
 
 typedef struct {
-   size_t frameSize;
    size_t fftSize;
    float frameSizeInv;
-   kiss_fft_cfg kisscfg;
+   fftwf_plan fftw;
    float* window;
-   kiss_fft_cpx* fftOutput;
-   kiss_fft_cpx* samplesTmp;
+   float* samplesTmp;
+   fftwf_complex* fftOutput;
    float* fftTmp;
 } working_area_t;
 

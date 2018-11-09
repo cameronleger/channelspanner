@@ -4,6 +4,3 @@
 [submodule "dep/lglw"]
 	path = dep/lglw
 	url = https://github.com/bsp2/lglw
-[submodule "dep/kissfft"]
-	path = dep/kissfft
-	url = https://github.com/mborgerding/kissfft

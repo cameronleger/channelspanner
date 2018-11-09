@@ -62,7 +62,7 @@ draw_ctx_t* init_draw_ctx( uint8_t scale, float sampleRate )
 
    ctx->sr = sampleRate;
    ctx->fm = sampleRate / 2.0f;
-   ctx->dl = 0.1f;
+   ctx->dl = 0.025f;
    ctx->ox = 1.0f / SPECTRUM_FREQUENCY_MIN;
    ctx->oy = 1.0f / DB_MIN;
    ctx->sx = 2.0f / (logf( ctx->fm ) - logf( SPECTRUM_FREQUENCY_MIN ));

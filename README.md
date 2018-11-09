@@ -1,7 +1,7 @@
 #Building
 See `dep/vstsdk` for instructions related to downloading and extracting the VST2SDK.
 
-FreeType and Jansson must be installed including their development headers.
+FreeType, Jansson, and FFTW must be installed including their development headers.
 
 Ensure that the submodules under `dep` are loaded:
 #####Configure GLEW
@@ -19,7 +19,6 @@ cmake ..
 make
 ```
 or
-
 ```
 cmake-build-debug
 cd cmake-build-debug
@@ -31,6 +30,6 @@ Copy the resulting library file from `bin` to wherever you store your VSTs.
 #Credits
 - FreeType
 - GLEW
-- KISSFFT
+- FFTW
 - LGLW
 - Steinberg VST SDK

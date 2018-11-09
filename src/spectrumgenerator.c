@@ -1,4 +1,6 @@
 #include <stdlib.h>
+#include <math.h>
+#include <string.h>
 
 #include "logging.h"
 #include "spectrumgenerator.h"
@@ -13,23 +15,24 @@ void init_working_area( track_t* track, size_t frameSize )
 {
    track->wrk = malloc( sizeof( working_area_t ) );
 
+   track->wrk->fftSize = frameSize / 2 + 1;
+   track->wrk->frameSizeInv = 1.0f / frameSize;
+
+   track->wrk->samplesTmp = fftwf_alloc_real( frameSize );
    track->wrk->window = malloc( frameSize * sizeof( float ) );
    window_hanning( track->wrk->window, frameSize );
 
-   track->wrk->kisscfg = kiss_fft_alloc( (int) frameSize, 0, 0, 0 );
-   track->wrk->fftOutput = malloc( frameSize * sizeof( kiss_fft_cpx ) );
-   track->wrk->samplesTmp = malloc( frameSize * sizeof( kiss_fft_cpx ) );
+   track->wrk->fftOutput = fftwf_alloc_complex( (frameSize / 2 + 1) );
    track->wrk->fftTmp = malloc( (frameSize / 2 + 1) * sizeof( float ) );
 
-   track->wrk->frameSizeInv = 1.0f / frameSize;
-   track->wrk->fftSize = frameSize / 2 + 1;
+   track->wrk->fftw = fftwf_plan_dft_r2c_1d( (int)frameSize, track->wrk->samplesTmp, track->wrk->fftOutput, FFTW_PATIENT );
 }
 
 void free_working_area( track_t* track )
 {
-   kiss_fft_free( track->wrk->kisscfg );
-   free( track->wrk->fftOutput );
-   free( track->wrk->samplesTmp );
+   fftwf_destroy_plan( track->wrk->fftw );
+   fftwf_free( track->wrk->fftOutput );
+   fftwf_free( track->wrk->samplesTmp );
    free( track->wrk->fftTmp );
    free( track->wrk->window );
    free( track->wrk );
@@ -93,7 +96,7 @@ void add_sample_data( track_t* track, size_t channel, const float* samples, size
    }
 }
 
-inline void mix( const float* from, float* to, const float kFrom, const float kTo, size_t count )
+void mix_samples( const float* from, float* to, const float kFrom, const float kTo, size_t count )
 {
    while ( count-- )
    {
@@ -115,27 +118,19 @@ void process_samples( track_t* track, float reactivity )
       for ( size_t i = 0; i < track->frameSize; ++i )
       {
          s = c->samples[(c->head + i) & (track->frameSize - 1)];
-         if ( s != 0.0f )
-         {
-            hasNewValues = 1;
-            track->wrk->samplesTmp[i].r = track->wrk->window[i] * s;
-            track->wrk->samplesTmp[i].i = 0.0f;
-         }
-         else
-         {
-            track->wrk->samplesTmp[i].r = 0.0f;
-            track->wrk->samplesTmp[i].i = 0.0f;
-         }
+         if ( s != 0.0f ) hasNewValues = 1;
+         track->wrk->samplesTmp[i] = track->wrk->window[i] * s;
       }
 
       if ( hasNewValues )
       {
-         kiss_fft( track->wrk->kisscfg, track->wrk->samplesTmp, track->wrk->fftOutput );
+         fftwf_execute( track->wrk->fftw );
+//         DEBUG_PRINT( "FFTW Cost: %10.10f\n", fftwf_cost( track->wrk->fftw ) );
 
          for ( size_t i = 0; i < track->wrk->fftSize; ++i )
             track->wrk->fftTmp[i] = sqrtf(
-                    track->wrk->fftOutput[i].r * track->wrk->fftOutput[i].r +
-                    track->wrk->fftOutput[i].i * track->wrk->fftOutput[i].i
+                    track->wrk->fftOutput[i][0] * track->wrk->fftOutput[i][0] +
+                    track->wrk->fftOutput[i][1] * track->wrk->fftOutput[i][1]
             ) * track->wrk->frameSizeInv;
       }
       else
@@ -152,7 +147,7 @@ void process_samples( track_t* track, float reactivity )
       }
 
       if ( hasNewValues || hasOldValues )
-         mix( track->wrk->fftTmp, c->fft, reactivity, 1.0f - reactivity, track->wrk->fftSize );
+         mix_samples( track->wrk->fftTmp, c->fft, reactivity, 1.0f - reactivity, track->wrk->fftSize );
 
 //      DEBUG_PRINT( "Processed %zu samples for channel %zu\n", track->frameSize, ch );
    }

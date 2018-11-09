@@ -2,13 +2,14 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <string.h>
 #include <time.h>
 
 #include "spanner.h"
 #include "logging.h"
-#include "spectrumgenerator.h"
 
 #define OLD_UPDATE 2
 
