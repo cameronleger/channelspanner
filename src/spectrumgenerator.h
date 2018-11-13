@@ -45,6 +45,7 @@ typedef struct {
 typedef struct {
    size_t frameSize;
    uint8_t color;
+   uint8_t group;
    channel_t channels[MAX_CHANNELS];
    working_area_t* wrk;
 } track_t;

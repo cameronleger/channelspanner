@@ -252,7 +252,7 @@ void draw_grid( draw_ctx_t* ctx )
    glEnd();
 }
 
-void draw_shared_channel_spectrums( draw_ctx_t* ctx, shared_memory_t* shmem )
+void draw_shared_channel_spectrums( draw_ctx_t* ctx, shared_memory_t* shmem, u_int8_t group )
 {
    if ( NULL == ctx ) return;
    if ( NULL == shmem ) return;
@@ -268,6 +268,7 @@ void draw_shared_channel_spectrums( draw_ctx_t* ctx, shared_memory_t* shmem )
    {
       spanned_track_t* track = &tracks[t];
       if ( is_this_track( shmem, track ) ) continue;
+      if ( group != track->group ) continue;
       if ( 0 == track->id ) continue;
 
       df = ctx->sr / track->frameSize;
@@ -281,7 +282,7 @@ void draw_shared_channel_spectrums( draw_ctx_t* ctx, shared_memory_t* shmem )
          glColor4f( COLORS[track->color * 2 + colorOffset][0],
                     COLORS[track->color * 2 + colorOffset][1],
                     COLORS[track->color * 2 + colorOffset][2],
-                    0.25f
+                    0.5f
          );
 
          lx = -1.0f;
@@ -485,7 +486,7 @@ void draw( draw_ctx_t* ctx, track_t* track, shared_memory_t* shmem )
 
    draw_mouse( ctx );
 
-   draw_shared_channel_spectrums( ctx, shmem );
+   draw_shared_channel_spectrums( ctx, shmem, track->group );
 
    draw_channel_spectrums( ctx, track );
 

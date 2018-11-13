@@ -3,6 +3,5 @@ cmake-build-debug
 cmake-build-release
 bin
 lib
-dep/vstsdk/aeffect.h
-dep/vstsdk/aeffectx.h
-dep/vstsdk/vstfxstore.h
+dep/vst2/aeffect.h
+dep/vst2/aeffectx.h

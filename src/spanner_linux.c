@@ -188,6 +188,7 @@ void update_shared_memory( shared_memory_t* shmem, track_t* track )
    t->id = shmem->id;
    t->lastUpdate = cl.tv_sec;
    t->color = track->color;
+   t->group = track->group;
    t->frameSize = track->frameSize;
    for ( int c = 0; c < MAX_CHANNELS; c++ )
    {
@@ -200,7 +201,7 @@ void update_shared_memory( shared_memory_t* shmem, track_t* track )
 
 spanned_track_t* get_shared_memory_tracks( shared_memory_t* shmem )
 {
-   if ( NULL == shmem->spanner )
+   if ( NULL == shmem || NULL == shmem->spanner )
    {
       return NULL;
    }

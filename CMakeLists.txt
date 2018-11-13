@@ -12,22 +12,19 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 
 file(REMOVE ${PROJECT_SOURCE_DIR}/bin/ChannelSpanner.so)
 
-include_directories(dep/glew/include)
 include_directories(dep/lglw)
-include_directories(dep/vstsdk)
+include_directories(dep/vst2)
 include_directories(src)
-
-add_library(GLEW STATIC dep/glew/src/glew.c)
-set_property(TARGET GLEW PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 add_library(LGLW STATIC dep/lglw/lglw_linux.c)
 find_package(X11 REQUIRED)
 find_package(OpenGL REQUIRED)
 target_link_libraries(LGLW OpenGL::GL ${X11_LIBRARIES})
-target_compile_definitions(LGLW PRIVATE LGLW_CONTEXT_ALLOW_USE_AFTER_FREE=y)
+target_compile_definitions(LGLW PRIVATE LGLW_RESET_CTX_ON_RESIZE=y)
+set_property(TARGET LGLW PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 find_package(Freetype REQUIRED)
-include_directories(${FREETYPE_INCLUDE_DIRS})
+find_package(GLEW REQUIRED)
 
 find_path(JANSSON_INCLUDE_DIRS jansson.h
         /usr/include /usr/local/include
@@ -40,6 +37,8 @@ find_path(FFTW_INCLUDE_DIRS fftw3.h
         /usr/include /usr/local/include
         )
 
+include_directories(${GLEW_INCLUDE_DIRS})
+include_directories(${FREETYPE_INCLUDE_DIRS})
 include_directories(${FFTW_INCLUDE_DIRS})
 include_directories(${JANSSON_INCLUDE_DIRS})
 add_library(ChannelSpanner SHARED
@@ -48,7 +47,7 @@ add_library(ChannelSpanner SHARED
         src/spectrumdraw.c
         src/spanner_linux.c
         )
-target_link_libraries(ChannelSpanner rt LGLW GLEW OpenGL::GL fftw3f ${FREETYPE_LIBRARIES} ${JANSSON_LIBRARIES} ${CMAKE_DL_LIBS})
+target_link_libraries(ChannelSpanner rt LGLW OpenGL::GL fftw3f ${GLEW_LIBRARIES} ${FREETYPE_LIBRARIES} ${JANSSON_LIBRARIES} ${CMAKE_DL_LIBS})
 set_target_properties(ChannelSpanner PROPERTIES
         PREFIX ""
         LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin

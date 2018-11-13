@@ -43,6 +43,7 @@ track_t* init_sample_data( size_t frameSize )
    track_t* t = malloc( sizeof( track_t ) );
    t->frameSize = frameSize;
    t->color = 0;
+   t->group = 1;
 
    for ( int i = 0; i < MAX_CHANNELS; ++i )
       t->channels[i].head = 0;

@@ -14,6 +14,7 @@ typedef struct {
    long lastUpdate;
    size_t frameSize;
    uint8_t color;
+   uint8_t group;
    float fft[MAX_CHANNELS][MAX_FFT / 2 + 1];
 } spanned_track_t;
 

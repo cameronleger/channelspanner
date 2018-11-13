@@ -46,8 +46,6 @@ static void loc_redraw_cbk( lglw_t _lglw );
 class VSTPluginWrapper
 {
 public:
-   static VSTPluginWrapper* window_to_wrapper;
-
    static long counter;
 
    ERect editor_rect;
@@ -58,6 +56,7 @@ public:
    float reactivity = 0.25f;
    uint8_t color = 0;
    uint8_t windowScale = 1;
+   uint8_t group = 1;
 
    uint32_t redraw_ival_ms = 1000 / 60;
 //   uint32_t redraw_ival_ms = 0;
@@ -116,6 +115,7 @@ public:
          freeTrack();
       track = init_sample_data( FFT_SCALER(fftScale) );
       track->color = color;
+      track->group = group;
    }
 
    void initCtx()
@@ -163,27 +163,16 @@ public:
       lglw_redraw_callback_set( lglw, &loc_redraw_cbk );
 
       lglw_timer_start( lglw, redraw_ival_ms );
-
-      window_to_wrapper = this;
    }
 
    void closeEditor()
    {
-      if ( nullptr != window_to_wrapper )
-      {
-         lglw_window_close( lglw );
-         window_to_wrapper = nullptr;
-      }
+      lglw_window_close( lglw );
    }
 
    track_t* getTrack()
    {
       return track;
-   }
-
-   static VSTPluginWrapper* FindWrapperByWindow( Window hwnd )
-   {
-      return window_to_wrapper;
    }
 
    void redrawWindow()
@@ -227,8 +216,10 @@ public:
       case 1:
          return sqrtf( reactivity );
       case 2:
-         return (float) color / COLOR_MAX;
+         return (float) (group - 1) / (MAX_INSTANCES - 1);
       case 3:
+         return (float) color / COLOR_MAX;
+      case 4:
          return (float) (windowScale - 1) / RESOLUTION_MAX;
       }
    }
@@ -252,12 +243,19 @@ public:
          break;
       case 2:
       {
+         group = (uint8_t) (roundf( value * (MAX_INSTANCES - 1) ) + 1);
+         if ( nullptr != track )
+            track->group = group;
+         break;
+      }
+      case 3:
+      {
          color = (uint8_t) roundf( value * COLOR_MAX );
          if ( nullptr != track )
             track->color = color;
          break;
       }
-      case 3:
+      case 4:
       {
          windowScale = (uint8_t) roundf( value * (RESOLUTION_MAX - 1) + 1 );
          if ( editor_rect.bottom != EDITWIN_H * windowScale)
@@ -290,9 +288,12 @@ public:
          ::strncpy( s, "Speed", sMaxLen );
          break;
       case 2:
-         ::strncpy( s, "Color", sMaxLen );
+         ::strncpy( s, "Group", sMaxLen );
          break;
       case 3:
+         ::strncpy( s, "Color", sMaxLen );
+         break;
+      case 4:
          ::strncpy( s, "WinSize", sMaxLen );
          break;
       }
@@ -312,9 +313,12 @@ public:
          ::snprintf( s, sMaxLen, "%.2f", reactivity );
          break;
       case 2:
-         ::snprintf( s, sMaxLen, "%i", color );
+         ::snprintf( s, sMaxLen, "%i", group );
          break;
       case 3:
+         ::snprintf( s, sMaxLen, "%i", color );
+         break;
+      case 4:
          ::snprintf( s, sMaxLen, "%i", windowScale );
          break;
       }
@@ -337,6 +341,9 @@ public:
          ::strncpy( s, "", sMaxLen );
          break;
       case 3:
+         ::strncpy( s, "", sMaxLen );
+         break;
+      case 4:
          ::strncpy( s, "x", sMaxLen );
          break;
       }
@@ -359,7 +366,7 @@ public:
 
          prop->displayIndex = 0;
          prop->category = 1;
-         prop->numParametersInCategory = 4;
+         prop->numParametersInCategory = 5;
 
          ::strncpy( prop->categoryLabel, "Channel Spanner", kVstMaxCategLabelLen );
 
@@ -372,7 +379,7 @@ public:
 
          prop->displayIndex = 1;
          prop->category = 1;
-         prop->numParametersInCategory = 4;
+         prop->numParametersInCategory = 5;
 
          ::strncpy( prop->categoryLabel, "Channel Spanner", kVstMaxCategLabelLen );
 
@@ -380,16 +387,16 @@ public:
          return 1;
 
       case 2:
-         prop->stepFloat = 1.0f / COLOR_MAX;
-         prop->smallStepFloat = 1.0f / COLOR_MAX;
-         prop->largeStepFloat = 1.0f / COLOR_MAX;
+         prop->stepFloat = 1.0f / MAX_INSTANCES;
+         prop->smallStepFloat = prop->stepFloat;
+         prop->largeStepFloat = prop->stepFloat;
 
-         ::strncpy( prop->label, "Color", kVstMaxLabelLen );
-         ::strncpy( prop->shortLabel, "Color", kVstMaxShortLabelLen );
+         ::strncpy( prop->label, "Group", kVstMaxLabelLen );
+         ::strncpy( prop->shortLabel, "Group", kVstMaxShortLabelLen );
 
          prop->displayIndex = 2;
          prop->category = 1;
-         prop->numParametersInCategory = 4;
+         prop->numParametersInCategory = 5;
 
          ::strncpy( prop->categoryLabel, "Channel Spanner", kVstMaxCategLabelLen );
 
@@ -397,16 +404,33 @@ public:
          return 1;
 
       case 3:
+         prop->stepFloat = 1.0f / COLOR_MAX;
+         prop->smallStepFloat = prop->stepFloat;
+         prop->largeStepFloat = prop->stepFloat;
+
+         ::strncpy( prop->label, "Color", kVstMaxLabelLen );
+         ::strncpy( prop->shortLabel, "Color", kVstMaxShortLabelLen );
+
+         prop->displayIndex = 3;
+         prop->category = 1;
+         prop->numParametersInCategory = 5;
+
+         ::strncpy( prop->categoryLabel, "Channel Spanner", kVstMaxCategLabelLen );
+
+         prop->flags = kVstParameterUsesFloatStep | kVstParameterSupportsDisplayIndex | kVstParameterSupportsDisplayCategory;
+         return 1;
+
+      case 4:
          prop->stepFloat = 1.0f / RESOLUTION_MAX;
-         prop->smallStepFloat = 1.0f / RESOLUTION_MAX;
-         prop->largeStepFloat = 1.0f / RESOLUTION_MAX;
+         prop->smallStepFloat = prop->stepFloat;
+         prop->largeStepFloat = prop->stepFloat;
 
          ::strncpy( prop->label, "Window Size", kVstMaxLabelLen );
          ::strncpy( prop->shortLabel, "WnSize", kVstMaxShortLabelLen );
 
-         prop->displayIndex = 3;
+         prop->displayIndex = 4;
          prop->category = 1;
-         prop->numParametersInCategory = 4;
+         prop->numParametersInCategory = 5;
 
          ::strncpy( prop->categoryLabel, "Channel Spanner", kVstMaxCategLabelLen );
 
@@ -436,6 +460,9 @@ public:
 
       json_t* wns = json_integer( windowScale );
       json_object_set_new( rootJ, "windowScale", wns );
+
+      json_t* grp = json_integer( group );
+      json_object_set_new( rootJ, "group", grp );
 
       savedState = json_dumps( rootJ, JSON_INDENT( 2 ) | JSON_REAL_PRECISION( 4 ) );
       json_decref( rootJ );
@@ -480,6 +507,11 @@ public:
             if ( wns ) windowScale = uint8_t( json_number_value( wns ) );
          }
 
+         {
+            json_t* grp = json_object_get( rootJ, "group" );
+            if ( grp ) group = uint8_t( json_number_value( grp ) );
+         }
+
          json_decref( rootJ );
 
          r = 1;
@@ -507,8 +539,6 @@ private:
    char* savedState = nullptr;
 };
 
-VSTPluginWrapper* VSTPluginWrapper::window_to_wrapper = nullptr;
-
 
 /*******************************************
  * Callbacks: Host -> Plugin
@@ -533,12 +563,7 @@ void VSTPluginProcessSamplesFloat32( AEffect* vstPlugin, float** inputs, float**
          add_sample_data( track, (size_t)i, inputSamples, (size_t)sampleFrames );
 
       if ( nullptr != inputSamples && nullptr != outputSamples && inputSamples != outputSamples )
-      {
-         for ( int j = 0; j < sampleFrames; j++ )
-         {
-            outputSamples[j] = inputSamples[j];
-         }
-      }
+         memcpy( outputSamples, inputSamples, (size_t) sampleFrames * sizeof( float ) );
    }
 
    if ( 1 == wrapper->process )
@@ -976,9 +1001,9 @@ VSTPluginMain( audioMasterCallback
 
    auto* plugin =
            new VSTPluginWrapper( vstHostCallback,
-                                 CCONST( 't', 'e', 's', 't' ), // unregistered
+                                 CCONST( '0', 'e', 't', 'u' ),
                                  PLUGIN_VERSION,
-                                 4, // params
+                                 5, // params
                                  0, // programs
                                  MAX_CHANNELS,   // inputs
                                  MAX_CHANNELS ); // outputs
