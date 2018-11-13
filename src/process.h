@@ -1,5 +1,5 @@
-#ifndef CHANNELSPANNER_SPECTRUMGENERATOR_H
-#define CHANNELSPANNER_SPECTRUMGENERATOR_H
+#ifndef CHANNELSPANNER_PROCESS_H
+#define CHANNELSPANNER_PROCESS_H
 
 #include <stdint.h>
 #include <fftw3.h>
@@ -64,4 +64,4 @@ void process_samples( track_t* track, float reactivity );
 }
 #endif
 
-#endif //CHANNELSPANNER_SPECTRUMGENERATOR_H
+#endif //CHANNELSPANNER_PROCESS_H

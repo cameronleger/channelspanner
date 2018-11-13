@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <GL/glew.h>
 
-#include "spectrumdraw.h"
+#include "draw.h"
 #include "textshader.h"
 #include "units.h"
 #include "logging.h"

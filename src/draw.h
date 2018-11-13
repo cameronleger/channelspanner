@@ -1,11 +1,11 @@
-#ifndef CHANNELSPANNER_SPECTRUMDRAW_H
-#define CHANNELSPANNER_SPECTRUMDRAW_H
+#ifndef CHANNELSPANNER_DRAW_H
+#define CHANNELSPANNER_DRAW_H
 
 #include <GL/gl.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
-#include "spectrumgenerator.h"
+#include "process.h"
 #include "spanner.h"
 
 #ifdef __cplusplus
@@ -62,4 +62,4 @@ void draw( draw_ctx_t* ctx, track_t* track, shared_memory_t* shmem );
 }
 #endif
 
-#endif //CHANNELSPANNER_SPECTRUMDRAW_H
+#endif //CHANNELSPANNER_DRAW_H

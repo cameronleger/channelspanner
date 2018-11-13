@@ -1,7 +1,7 @@
 #ifndef CHANNELSPANNER_SPANNER_H
 #define CHANNELSPANNER_SPANNER_H
 
-#include "spectrumgenerator.h"
+#include "process.h"
 
 #define SHMEMNAME "ChannelSpanner"
 

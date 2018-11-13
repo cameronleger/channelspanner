@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "logging.h"
-#include "spectrumgenerator.h"
+#include "process.h"
 
 void window_hanning( float* samples, size_t sampleCount )
 {

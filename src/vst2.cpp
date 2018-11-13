@@ -9,8 +9,8 @@
 #include "aeffect.h"
 #include "aeffectx.h"
 #include "lglw.h"
-#include "spectrumgenerator.h"
-#include "spectrumdraw.h"
+#include "process.h"
+#include "draw.h"
 #include "spanner.h"
 
 #define EDITWIN_W 650

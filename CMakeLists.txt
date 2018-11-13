@@ -42,9 +42,9 @@ include_directories(${FREETYPE_INCLUDE_DIRS})
 include_directories(${FFTW_INCLUDE_DIRS})
 include_directories(${JANSSON_INCLUDE_DIRS})
 add_library(ChannelSpanner SHARED
-        src/plugin.cpp
-        src/spectrumgenerator.c
-        src/spectrumdraw.c
+        src/vst2.cpp
+        src/process.c
+        src/draw.c
         src/spanner_linux.c
         )
 target_link_libraries(ChannelSpanner rt LGLW OpenGL::GL fftw3f ${GLEW_LIBRARIES} ${FREETYPE_LIBRARIES} ${JANSSON_LIBRARIES} ${CMAKE_DL_LIBS})
