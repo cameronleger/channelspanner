@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.0)
+cmake_minimum_required (VERSION 3.12)
 project (ChannelSpanner)
 
 # configure these if desired
@@ -24,21 +24,21 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 # build LGLW first
 include_directories(dep/lglw)
 
+# TODO Platforms
 find_package(X11 REQUIRED)
 find_package(OpenGL REQUIRED)
 
+# TODO Platforms
 add_library(LGLW STATIC dep/lglw/lglw_linux.c)
 target_link_libraries(LGLW OpenGL::GL ${X11_LIBRARIES})
 target_compile_definitions(LGLW PRIVATE LGLW_RESET_CTX_ON_RESIZE=y)
 set_property(TARGET LGLW PROPERTY POSITION_INDEPENDENT_CODE ON)
 
-# remove the outputs to force a rebuild
-file(REMOVE ${PROJECT_SOURCE_DIR}/bin/ChannelSpannerVST2.so)
-
 # build ChannelSpanner's main code
 find_package(Freetype REQUIRED)
 find_package(GLEW REQUIRED)
 
+# TODO Platforms
 find_path(JANSSON_INCLUDE_DIRS jansson.h
         /usr/include /usr/local/include)
 find_library(JANSSON_LIBRARIES NAMES jansson
@@ -58,6 +58,7 @@ include_directories(${JANSSON_INCLUDE_DIRS})
 add_library(ChannelSpanner STATIC
         src/process.c
         src/draw.c
+        # TODO Platforms
         src/spanner_linux.c
         )
 target_link_libraries(ChannelSpanner rt LGLW OpenGL::GL fftw3f ${GLEW_LIBRARIES} ${FREETYPE_LIBRARIES} ${CMAKE_DL_LIBS})
@@ -70,10 +71,6 @@ add_library(ChannelSpannerVST2 SHARED
 target_link_libraries(ChannelSpannerVST2 ChannelSpanner ${JANSSON_LIBRARIES})
 set_target_properties(ChannelSpannerVST2 PROPERTIES
         PREFIX ""
+        OUTPUT_NAME "ChannelSpanner"
         LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin
-        )
-target_compile_definitions(ChannelSpanner PRIVATE
-        MAX_CHANNELS=2
-        MAX_FFT=8192
-        MAX_INSTANCES=16
         )
