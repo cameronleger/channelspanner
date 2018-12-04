@@ -30,6 +30,9 @@ typedef struct {
    int width;
    int height;
 
+   float swidth;
+   float sheight;
+
    uint8_t scale;
 
    float sr; /* sample rate */
@@ -43,11 +46,18 @@ typedef struct {
    float sx; /* scaling factor for min/max freq range to lin range */
    float sy; /* scaling factor for min/max dB range to lin range */
 
-   character_t* characters;
+   int info_dirty;
+   char info_dB[10];
+   char info_Hz[10];
+   char info_note[8];
+
+   float xlog[MAX_FFT];
 
    GLuint program;
    GLuint vao;
    GLuint vbo;
+
+   character_t* characters;
 } draw_ctx_t;
 
 draw_ctx_t* init_draw_ctx( uint8_t scale, float sampleRate );

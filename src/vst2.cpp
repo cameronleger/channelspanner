@@ -294,7 +294,7 @@ public:
          ::strncpy( s, "Color", sMaxLen );
          break;
       case 4:
-         ::strncpy( s, "WinSize", sMaxLen );
+         ::strncpy( s, "Scale", sMaxLen );
          break;
       }
    }
@@ -425,8 +425,8 @@ public:
          prop->smallStepFloat = prop->stepFloat;
          prop->largeStepFloat = prop->stepFloat;
 
-         ::strncpy( prop->label, "Window Size", kVstMaxLabelLen );
-         ::strncpy( prop->shortLabel, "WnSize", kVstMaxShortLabelLen );
+         ::strncpy( prop->label, "GUI Scale", kVstMaxLabelLen );
+         ::strncpy( prop->shortLabel, "Scale", kVstMaxShortLabelLen );
 
          prop->displayIndex = 4;
          prop->category = 1;
@@ -550,7 +550,7 @@ extern "C" {
 void VSTPluginProcessSamplesFloat32( AEffect* vstPlugin, float** inputs, float** outputs, VstInt32 sampleFrames )
 {
    auto* wrapper = static_cast<VSTPluginWrapper*>(vstPlugin->object);
-   DEBUG_PRINT( "Processing %i sample frames for %i inputs (max %i)\n", sampleFrames, wrapper->getNumInputs(), MAX_CHANNELS );
+//   DEBUG_PRINT( "Processing %i sample frames for %i inputs (max %i)\n", sampleFrames, wrapper->getNumInputs(), MAX_CHANNELS );
 
    track_t* track = wrapper->getTrack();
 
@@ -990,10 +990,10 @@ VSTPluginMain( audioMasterCallback
 {
    DEBUG_PRINT( "Debugging is enabled...\n" );
 
-   assert( MAX_FFT > 0 );
-   assert( MAX_FFT % 256 == 0 );
-   assert( MAX_CHANNELS > 0 );
-   assert( MAX_INSTANCES > 0 );
+   static_assert( MAX_FFT > 0, "MAX_FFT must be > 0" );
+   static_assert( MAX_FFT % 256 == 0, "MAX_FFT must be divisible by 256" );
+   static_assert( MAX_CHANNELS > 0, "MAX_CHANNELS must be > 0" );
+   static_assert( MAX_INSTANCES > 0, "MAX_INSTANCES must be > 0" );
 
    DEBUG_PRINT( " Max FFT Size: %i\n", MAX_FFT );
    DEBUG_PRINT( " Max Channels: %i\n", MAX_CHANNELS );

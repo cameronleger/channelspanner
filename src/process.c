@@ -14,6 +14,7 @@ void window_hanning( float* samples, size_t sampleCount )
 void init_working_area( track_t* track, size_t frameSize )
 {
    track->wrk = malloc( sizeof( working_area_t ) );
+   memset( track->wrk, 0, sizeof( working_area_t ) );
 
    track->wrk->fftSize = frameSize / 2 + 1;
    track->wrk->frameSizeInv = 1.0f / frameSize;
@@ -22,10 +23,13 @@ void init_working_area( track_t* track, size_t frameSize )
    track->wrk->window = malloc( frameSize * sizeof( float ) );
    window_hanning( track->wrk->window, frameSize );
 
-   track->wrk->fftOutput = fftwf_alloc_complex( (frameSize / 2 + 1) );
-   track->wrk->fftTmp = malloc( (frameSize / 2 + 1) * sizeof( float ) );
+   track->wrk->fftOutput = fftwf_alloc_complex( track->wrk->fftSize );
+   track->wrk->fftTmp = malloc( track->wrk->fftSize * sizeof( float ) );
+   memset( track->wrk->fftTmp, 0, track->wrk->fftSize * sizeof( float ) );
 
    track->wrk->fftw = fftwf_plan_dft_r2c_1d( (int)frameSize, track->wrk->samplesTmp, track->wrk->fftOutput, FFTW_PATIENT );
+
+   DEBUG_PRINT( "Setup Working area: %i samples + %i fftSamples at %p\n", MAX_FFT, (MAX_FFT / 2 + 1), track->wrk );
 }
 
 void free_working_area( track_t* track )
@@ -41,12 +45,16 @@ void free_working_area( track_t* track )
 track_t* init_sample_data( size_t frameSize )
 {
    track_t* t = malloc( sizeof( track_t ) );
+   memset( t, 0, sizeof( track_t ) );
    t->frameSize = frameSize;
    t->color = 0;
    t->group = 1;
 
    for ( int i = 0; i < MAX_CHANNELS; ++i )
+   {
       t->channels[i].head = 0;
+      memset( &t->channels[i].fft[0], 0, (MAX_FFT / 2 + 1) * sizeof( float ) );
+   }
 
    init_working_area( t, frameSize );
 
@@ -97,15 +105,6 @@ void add_sample_data( track_t* track, size_t channel, const float* samples, size
    }
 }
 
-void mix_samples( const float* from, float* to, const float kFrom, const float kTo, size_t count )
-{
-   while ( count-- )
-   {
-      *to = *(to) * kTo + *(from++) * kFrom;
-      to++;
-   }
-}
-
 void process_samples( track_t* track, float reactivity )
 {
    if ( NULL == track ) return;
@@ -115,7 +114,7 @@ void process_samples( track_t* track, float reactivity )
       channel_t* c = &track->channels[ch];
 
       int hasNewValues = 0;
-      float s;
+      float s = 0;
       for ( size_t i = 0; i < track->frameSize; ++i )
       {
          s = c->samples[(c->head + i) & (track->frameSize - 1)];
@@ -148,7 +147,12 @@ void process_samples( track_t* track, float reactivity )
       }
 
       if ( hasNewValues || hasOldValues )
-         mix_samples( track->wrk->fftTmp, c->fft, reactivity, 1.0f - reactivity, track->wrk->fftSize );
+      {
+         const float kFrom = reactivity;
+         const float kTo = 1.0f - reactivity;
+         for ( size_t i = 0; i < track->wrk->fftSize; ++i )
+            c->fft[i] = c->fft[i] * kTo + track->wrk->fftTmp[i] * kFrom;
+      }
 
 //      DEBUG_PRINT( "Processed %zu samples for channel %zu\n", track->frameSize, ch );
    }

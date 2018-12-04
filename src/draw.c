@@ -68,8 +68,16 @@ draw_ctx_t* init_draw_ctx( uint8_t scale, float sampleRate )
    ctx->sx = 2.0f / (logf( ctx->fm ) - logf( SPECTRUM_FREQUENCY_MIN ));
    ctx->sy = 2.0f / (logf( DB_MIN ) - logf( DB_MAX ));
 
+   ctx->info_dirty = 1;
+   ctx->info_dB[0] = 0;
+   ctx->info_Hz[0] = 0;
+   ctx->info_note[0] = 0;
+
    ctx->characters = malloc( 128 * sizeof( character_t ) );
    ctx->program = 0;
+
+   for ( int i = 0; i < MAX_FFT; i++ )
+      ctx->xlog[i] = logf( i );
 
    return ctx;
 }
@@ -87,6 +95,8 @@ void set_mouse( draw_ctx_t* ctx, int32_t mousex, int32_t mousey )
 
    ctx->mousex = (float) mousex / ctx->width * 2 - 1;
    ctx->mousey = (float) (ctx->height - mousey) / ctx->height * 2 - 1;
+
+   ctx->info_dirty = 1;
 }
 
 void draw_text( draw_ctx_t* ctx, const char* c, size_t charCount, float _x, float _y, float sx, float sy, float r, float g, float b, int halign, int valign )
@@ -166,46 +176,48 @@ void draw_mouse( draw_ctx_t* ctx )
 
 void draw_info( draw_ctx_t* ctx )
 {
-   float sx = 2.0f / ctx->width;
-   float sy = 2.0f / ctx->height;
-
-   float gain = expf( (-ctx->mousey - 1) / ctx->sy ) / ctx->oy;
-
-   char info_dB[10];
-   snprintf( info_dB, 10, "%6.1f dB", GAINTODB( gain ) );
-   draw_text( ctx, info_dB, 10, ctx->mousex + 0.01f, ctx->mousey + 0.02f, sx, sy, WHITE, 0, 0 );
-
-   float freq = expf( (ctx->mousex + 1) / ctx->sx ) / ctx->ox;
-
-   char info_Hz[10];
-   snprintf( info_Hz, 10, "%6.0f Hz", freq );
-   draw_text( ctx, info_Hz, 10, ctx->mousex - 0.01f, ctx->mousey + 0.02f, sx, sy, WHITE, 1, 0 );
-
-   if ( freq > C0 )
+   if ( ctx->info_dirty )
    {
-      float octave = log2f( freq / C0 );
-      float semitone = 12 * octave;
-      float cent = 100 * semitone;
+      float gain = expf( (-ctx->mousey - 1) / ctx->sy ) / ctx->oy;
+      snprintf( ctx->info_dB, 10, "%6.1f dB", GAINTODB( gain ) );
 
-      int note = (int) semitone % 12;
-      note = (note < 0) ? -note : note;
+      float freq = expf( (ctx->mousex + 1) / ctx->sx ) / ctx->ox;
+      snprintf( ctx->info_Hz, 10, "%6.0f Hz", freq );
 
-      int offset = (int) cent % 100;
-      if ( offset > 50 )
+      if ( freq > C0 )
       {
-         offset = offset - 100;
-         note += 1;
-         if ( note == 12 )
+         float octave = log2f( freq / C0 );
+         float semitone = 12 * octave;
+         float cent = 100 * semitone;
+
+         int note = (int) semitone % 12;
+         note = (note < 0) ? -note : note;
+
+         int offset = (int) cent % 100;
+         if ( offset > 50 )
          {
-            note = 0;
-            octave += 1;
+            offset = offset - 100;
+            note += 1;
+            if ( note == 12 )
+            {
+               note = 0;
+               octave += 1;
+            }
          }
+
+         snprintf( ctx->info_note, 8, "%-2s%i%+-3i", NOTES[note], (int) floorf( octave ), offset );
+      }
+      else
+      {
+         snprintf( ctx->info_note, 8, "" );
       }
 
-      char info_note[8];
-      snprintf( info_note, 8, "%-2s%i%+-3i", NOTES[note], (int) floorf( octave ), offset );
-      draw_text( ctx, info_note, 8, ctx->mousex - 0.01f, ctx->mousey - 0.02f, sx, sy, WHITE, 1, 1 );
+      ctx->info_dirty = 0;
    }
+
+   draw_text( ctx, ctx->info_dB, 10, ctx->mousex + 0.01f, ctx->mousey + 0.02f, ctx->swidth, ctx->sheight, WHITE, 0, 0 );
+   draw_text( ctx, ctx->info_Hz, 10, ctx->mousex - 0.01f, ctx->mousey + 0.02f, ctx->swidth, ctx->sheight, WHITE, 1, 0 );
+   draw_text( ctx, ctx->info_note, 8, ctx->mousex - 0.01f, ctx->mousey - 0.02f, ctx->swidth, ctx->sheight, WHITE, 1, 1 );
 }
 
 void draw_grid( draw_ctx_t* ctx )
@@ -271,7 +283,7 @@ void draw_shared_channel_spectrums( draw_ctx_t* ctx, shared_memory_t* shmem, u_i
       if ( group != track->group ) continue;
       if ( 0 == track->id ) continue;
 
-      df = ctx->sr / track->frameSize;
+      df = logf( ctx->sr / track->frameSize * ctx->ox );
 
       for ( int ch = 0; ch < MAX_CHANNELS; ch++ )
       {
@@ -294,7 +306,7 @@ void draw_shared_channel_spectrums( draw_ctx_t* ctx, shared_memory_t* shmem, u_i
 
          for ( int i = 0; i < (track->frameSize >> 1) + 1; i++ )
          {
-            x = ctx->sx * logf( i * df * ctx->ox ) - 1;
+            x = ctx->sx * (ctx->xlog[i] + df ) - 1;
             if ( i == 0 ) x = -1.0f;
 
             y = ctx->sy * logf( track->fft[ch][i] * ctx->oy ) + 1;
@@ -329,7 +341,7 @@ void draw_channel_spectrums( draw_ctx_t* ctx, track_t* track )
 
    float x, y, lx, a, b, df;
 
-   df = ctx->sr / track->frameSize;
+   df = logf( ctx->sr / track->frameSize * ctx->ox );
 
    channel_t* channel;
    for ( int ch = 0; ch < MAX_CHANNELS; ch++ )
@@ -353,8 +365,8 @@ void draw_channel_spectrums( draw_ctx_t* ctx, track_t* track )
 
       for ( int i = 0; i < track->frameSize / 2 + 1; i++ )
       {
-         x = ctx->sx * logf( i * df * ctx->ox ) - 1;
          if ( i == 0 ) x = -1.0f;
+         else x = ctx->sx * (ctx->xlog[i] + df) - 1;
 
          y = ctx->sy * logf( channel->fft[i] * ctx->oy ) + 1;
 
@@ -395,6 +407,8 @@ void init_draw( draw_ctx_t* ctx )
    glGetIntegerv( GL_VIEWPORT, dims );
    ctx->width = dims[2];
    ctx->height = dims[3];
+   ctx->swidth = 2.0f / ctx->width;
+   ctx->sheight = 2.0f / ctx->height;
 
    int e;
 
@@ -477,7 +491,7 @@ void draw( draw_ctx_t* ctx, track_t* track, shared_memory_t* shmem )
    if ( NULL == ctx ) return;
    if ( NULL == track ) return;
 
-   if ( ctx-> init == 0 ) init_draw( ctx );
+   if ( ctx->init == 0 ) init_draw( ctx );
 
    glClearColor( BLACK, 1.0 );
    glClear( GL_COLOR_BUFFER_BIT );
@@ -490,7 +504,7 @@ void draw( draw_ctx_t* ctx, track_t* track, shared_memory_t* shmem )
 
    draw_channel_spectrums( ctx, track );
 
-   draw_info ( ctx );
+   draw_info( ctx );
 
    glFlush();
 }
