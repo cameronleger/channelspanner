@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.12)
-project (ChannelSpanner)
+project (ChannelSpanner LANGUAGES C CXX)
 
 # configure these if desired
 add_definitions(
@@ -63,6 +63,8 @@ add_library(ChannelSpanner STATIC
         )
 target_link_libraries(ChannelSpanner rt LGLW OpenGL::GL fftw3f ${GLEW_LIBRARIES} ${FREETYPE_LIBRARIES} ${CMAKE_DL_LIBS})
 set_property(TARGET ChannelSpanner PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET ChannelSpanner PROPERTY C_STANDARD 11)
+set_property(TARGET ChannelSpanner PROPERTY CXX_STANDARD 14)
 
 # build the VST2 plugin
 add_library(ChannelSpannerVST2 SHARED

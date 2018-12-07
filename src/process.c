@@ -19,13 +19,12 @@ void init_working_area( track_t* track, size_t frameSize )
    track->wrk->fftSize = frameSize / 2 + 1;
    track->wrk->frameSizeInv = 1.0f / frameSize;
 
-   track->wrk->samplesTmp = fftwf_alloc_real( frameSize );
-   track->wrk->window = malloc( frameSize * sizeof( float ) );
+   track->wrk->window = fftwf_alloc_real( frameSize );
    window_hanning( track->wrk->window, frameSize );
 
+   track->wrk->samplesTmp = fftwf_alloc_real( frameSize );
    track->wrk->fftOutput = fftwf_alloc_complex( track->wrk->fftSize );
-   track->wrk->fftTmp = malloc( track->wrk->fftSize * sizeof( float ) );
-   memset( track->wrk->fftTmp, 0, track->wrk->fftSize * sizeof( float ) );
+   track->wrk->fftTmp = fftwf_alloc_real( track->wrk->fftSize );
 
    track->wrk->fftw = fftwf_plan_dft_r2c_1d( (int)frameSize, track->wrk->samplesTmp, track->wrk->fftOutput, FFTW_PATIENT );
 
@@ -37,9 +36,9 @@ void free_working_area( track_t* track )
    fftwf_destroy_plan( track->wrk->fftw );
    fftwf_free( track->wrk->fftOutput );
    fftwf_free( track->wrk->samplesTmp );
-   free( track->wrk->fftTmp );
-   free( track->wrk->window );
-   free( track->wrk );
+   fftwf_free( track->wrk->fftTmp );
+   fftwf_free( track->wrk->window );
+   fftwf_free( track->wrk );
 }
 
 track_t* init_sample_data( size_t frameSize )
@@ -81,51 +80,73 @@ void update_frame_size( track_t* track, size_t frameSize )
    init_working_area( track, frameSize );
 }
 
-void add_sample_data( track_t* track, size_t channel, const float* samples, size_t sampleCount )
+void add_sample_data( track_t* track, size_t channel, const float* samples, const size_t sampleCount )
 {
    if ( NULL == track ) return;
 
    channel_t* c = &track->channels[channel];
 
-   if ( NULL == samples)
+   size_t head = c->head;
+   size_t frameSize = track->frameSize;
+
+   if ( head + sampleCount <= frameSize )
    {
-      for ( size_t i = 0; i < sampleCount; ++i )
-      {
-         c->samples[c->head] = 0;
-         c->head = (c->head + 1) & (track->frameSize - 1);
-      }
+      if ( NULL == samples)
+         for ( size_t i = 0; i < sampleCount; ++i )
+            c->samples[head + i] = 0;
+      else
+         for ( size_t i = 0; i < sampleCount; ++i )
+            c->samples[head + i] = samples[i];
    }
    else
    {
-      for ( size_t i = 0; i < sampleCount; ++i )
+      if ( NULL == samples)
       {
-         c->samples[c->head] = samples[i];
-         c->head = (c->head + 1) & (track->frameSize - 1);
+         for ( size_t i = head; i < frameSize; ++i )
+            c->samples[i] = 0;
+         size_t j = sampleCount - (frameSize - head);
+         for ( size_t i = 0; i < j; ++i )
+            c->samples[i] = 0;
+      }
+      else
+      {
+         size_t n = 0;
+         for ( size_t i = head; i < frameSize; ++i, ++n )
+            c->samples[i] = samples[n];
+         size_t j = sampleCount - (frameSize - head);
+         for ( size_t i = 0; i < j; ++i, ++n )
+            c->samples[i] = samples[n];
       }
    }
+   c->head = (head + sampleCount) % frameSize;
 }
 
 void process_samples( track_t* track, float reactivity )
 {
    if ( NULL == track ) return;
 
+   size_t frameSize = track->frameSize;
+
    for ( size_t ch = 0; ch < MAX_CHANNELS; ++ch )
    {
       channel_t* c = &track->channels[ch];
 
+      size_t j = 0, h = c->head;
+      for ( size_t i = h; i < frameSize; ++i, ++j )
+         track->wrk->samplesTmp[j] = track->wrk->window[j] * c->samples[i];
+      for ( size_t i = 0; i < h; ++i, ++j )
+         track->wrk->samplesTmp[j] = track->wrk->window[j] * c->samples[i];
+
       int hasNewValues = 0;
-      float s = 0;
-      for ( size_t i = 0; i < track->frameSize; ++i )
-      {
-         s = c->samples[(c->head + i) & (track->frameSize - 1)];
-         if ( s != 0.0f ) hasNewValues = 1;
-         track->wrk->samplesTmp[i] = track->wrk->window[i] * s;
-      }
+      for ( size_t i = 0; i < frameSize; ++i )
+         if ( track->wrk->samplesTmp[i] != 0.0f ) {
+            hasNewValues = 1;
+            break;
+         }
 
       if ( hasNewValues )
       {
          fftwf_execute( track->wrk->fftw );
-//         DEBUG_PRINT( "FFTW Cost: %10.10f\n", fftwf_cost( track->wrk->fftw ) );
 
          for ( size_t i = 0; i < track->wrk->fftSize; ++i )
             track->wrk->fftTmp[i] = sqrtf(
@@ -134,17 +155,16 @@ void process_samples( track_t* track, float reactivity )
             ) * track->wrk->frameSizeInv;
       }
       else
-         memset( track->wrk->fftTmp, 0, track->wrk->fftSize );
+         for ( size_t i = 0; i < track->wrk->fftSize; ++i )
+            track->wrk->fftTmp[i] = 0;
 
       int hasOldValues = 0;
       for ( size_t i = 0; i < track->wrk->fftSize; ++i )
-      {
          if ( c->fft[i] > 0.0f )
          {
             hasOldValues = 1;
             break;
          }
-      }
 
       if ( hasNewValues || hasOldValues )
       {

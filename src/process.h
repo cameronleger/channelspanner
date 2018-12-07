@@ -29,11 +29,11 @@ extern "C" {
 typedef struct {
    size_t fftSize;
    float frameSizeInv;
-   fftwf_plan fftw;
    float* window;
    float* samplesTmp;
    fftwf_complex* fftOutput;
    float* fftTmp;
+   fftwf_plan fftw;
 } working_area_t;
 
 typedef struct {

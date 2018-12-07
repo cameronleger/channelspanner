@@ -191,12 +191,8 @@ void update_shared_memory( shared_memory_t* shmem, track_t* track )
    t->group = track->group;
    t->frameSize = track->frameSize;
    for ( int c = 0; c < MAX_CHANNELS; c++ )
-   {
       for ( int s = 0; s < (MAX_FFT / 2 + 1); s++ )
-      {
          t->fft[c][s] = track->channels[c].fft[s];
-      }
-   }
 }
 
 spanned_track_t* get_shared_memory_tracks( shared_memory_t* shmem )
