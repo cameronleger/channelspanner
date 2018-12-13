@@ -54,8 +54,8 @@ draw_ctx_t* init_draw_ctx( uint8_t scale, float sampleRate )
 {
    draw_ctx_t* ctx = malloc( sizeof( draw_ctx_t ) );
    ctx->init = 0;
-   ctx->mousex = -2.0f;
-   ctx->mousey = -2.0f;
+   ctx->mousex = -1.0f;
+   ctx->mousey = 1.0f;
    ctx->width = 0;
    ctx->height = 0;
    ctx->scale = scale;
@@ -96,6 +96,11 @@ void set_mouse( draw_ctx_t* ctx, int32_t mousex, int32_t mousey )
    ctx->mousex = (float) mousex / ctx->width * 2 - 1;
    ctx->mousey = (float) (ctx->height - mousey) / ctx->height * 2 - 1;
 
+   if (ctx->mousex < -1.0f) ctx->mousex = -1.0f;
+   if (ctx->mousex >  1.0f) ctx->mousex =  1.0f;
+   if (ctx->mousey < -1.0f) ctx->mousey = -1.0f;
+   if (ctx->mousey >  1.0f) ctx->mousey =  1.0f;
+
    ctx->info_dirty = 1;
 }
 
@@ -114,9 +119,9 @@ void draw_text( draw_ctx_t* ctx, const char* c, size_t charCount, float _x, floa
       {
          if ( c[i] == 0 ) break;
 
-         lx += (ctx->characters[c[i]].offset / 64) * sx;
+         lx += (ctx->characters[(size_t) c[i]].offset / 64) * sx;
 
-         float _mh = ctx->characters[c[i]].h * sy;
+         float _mh = ctx->characters[(size_t) c[i]].h * sy;
          mh = (_mh > mh) ? _mh : mh;
       }
       if ( halign ) _x -= lx;
@@ -126,7 +131,7 @@ void draw_text( draw_ctx_t* ctx, const char* c, size_t charCount, float _x, floa
    for ( int i = 0; i < charCount; i++ )
    {
       if ( c[i] == 0 ) break;
-      character_t ch = ctx->characters[c[i]];
+      character_t ch = ctx->characters[(size_t) c[i]];
 
       GLfloat x = _x + ch.x * sx;
       GLfloat y = _y - (ch.h - ch.y) * sy;
@@ -176,6 +181,8 @@ void draw_mouse( draw_ctx_t* ctx )
 
 void draw_info( draw_ctx_t* ctx )
 {
+   if ( NULL == ctx ) return;
+
    if ( ctx->info_dirty )
    {
       float gain = expf( (-ctx->mousey - 1) / ctx->sy ) / ctx->oy;
@@ -208,9 +215,7 @@ void draw_info( draw_ctx_t* ctx )
          snprintf( ctx->info_note, 8, "%-2s%i%+-3i", NOTES[note], (int) floorf( octave ), offset );
       }
       else
-      {
-         snprintf( ctx->info_note, 8, "" );
-      }
+         ctx->info_note[0] = 0;
 
       ctx->info_dirty = 0;
    }
@@ -415,7 +420,7 @@ void init_draw( draw_ctx_t* ctx )
    glewExperimental = GL_TRUE;
    e = glewInit();
    if ( e != GLEW_OK )
-      DEBUG_PRINT( "GLEW Initialization failed: %i\n", e );
+      fprintf( stderr, "GLEW Initialization failed: %i\n", e );
    // GLEW generates GL error because it calls glGetString(GL_EXTENSIONS), we'll consume it here.
    glGetError();
 
@@ -424,18 +429,18 @@ void init_draw( draw_ctx_t* ctx )
 
    e = FT_Init_FreeType( &freetype );
    if ( e )
-      DEBUG_PRINT( "Unable to load FreeType: %i\n", e );
+      fprintf( stderr, "Unable to load FreeType: %i\n", e );
 
-   e = FT_New_Face( freetype, "/usr/share/fonts/TTF/DejaVuSansMono.ttf", 0, &fontface );
+   e = FT_New_Face( freetype, FONT_FACE, 0, &fontface );
    if ( e )
-      DEBUG_PRINT( "Unable to load FreeType Font: %i\n", e );
+      fprintf( stderr, "Unable to load FreeType Font: %i\n", e );
    FT_Set_Pixel_Sizes( fontface, 0, 8u * ctx->scale );
 
    for ( GLubyte c = 0; c < 128; c++ )
    {
       if ( FT_Load_Char( fontface, c, FT_LOAD_RENDER ) )
       {
-         DEBUG_PRINT( "Unable to load character: %i, %c\n", c, c );
+         fprintf( stderr, "Unable to load character: %i, %c\n", c, c );
          continue;
       }
       GLuint tex;

@@ -1,7 +1,7 @@
 #ChannelSpanner
 This VST2 Plugin aims to be a quick, light, and no-fuss multi-track Spectrum Analyzer. To that end, simply add multiple instances of this plugin, possibly tweak some parameters in your host, and enjoy! Use it for visualizing each bus, each lead, or even before and after an effect chain.
 
-The GUI should be self-explanatory: it displays the frequency spectrum for the input data, and the crosshair under the mouse displays decibel levels, frequency in Hz, and note, octave, and detuning. By default, other loaded instances of this plugin will also display their frequency spectrums, although visually in the 'background.'
+The GUI should be self-explanatory: it displays the frequency spectrum for the input data, and the crosshair under the mouse displays decibel levels, frequency in Hz, and note, octave, and detuning. By default, other loaded instances of this plugin will also display their frequency spectrums, although visually in the 'background.' The only feature that's not immediately obvious is that you can 'sweep' the current instances frequencies with a variable bandpass filter by left-clicking on the graph. Moving from left to right adjusts the cutoff frequency to follow your mouse, and moving from bottom to top adjusts the Q or slope of the filter, where the top of the window is very narrow and the bottom is pretty wide.
 
 Parameters are tweaked in your VST Host, and not the plugin window! These values rarely change, so I didn't want to clutter the UI with them. All parameters are only for the instance that you set them on, and they apply when sharing the spectrum data, e.g. setting instance A to a red spectrum will display that spectrum as red also when viewing through instance B.
 

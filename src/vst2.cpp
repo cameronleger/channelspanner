@@ -5,13 +5,13 @@
 #include <X11/Xlib.h>
 #include <X11/Xos.h>
 
+#include "vst2.h"
 #include "logging.h"
-#include "aeffect.h"
-#include "aeffectx.h"
 #include "lglw.h"
 #include "process.h"
 #include "draw.h"
 #include "spanner.h"
+#include "biquad.h"
 
 #define EDITWIN_W 650
 #define EDITWIN_H 400
@@ -22,11 +22,6 @@ uint FFT_SCALE_MAX = (uint)log2( MAX_FFT ) - 8;
 #define FFT_SCALER(r) (256 * (uint)exp2f(r))
 
 #define COLOR_MAX 6
-
-// Since the host is expecting a very specific API we need to make sure it has C linkage (not C++)
-extern "C" {
-extern AEffect* VSTPluginMain( audioMasterCallback vstHostCallback );
-}
 
 const VstInt32 PLUGIN_VERSION = 1000;
 
@@ -62,6 +57,9 @@ public:
 //   uint32_t redraw_ival_ms = 0;
 
    int process = 1;
+   int bandpass = 0;
+
+   cascade_t filters[MAX_CHANNELS];
 
 public:
    VSTPluginWrapper( audioMasterCallback vstHostCallback,
@@ -191,6 +189,9 @@ public:
    void setMousePosition( int32_t x, int32_t y )
    {
       set_mouse( ctx, x, y );
+      float freq = expf( (ctx->mousex + 1) / ctx->sx ) / ctx->ox;
+      for ( auto& filter : filters )
+         update_cascade( &filter, freq / sampleRate, (1.1f + ctx->mousey) * 3.0f );
    }
 
    void setSampleRate( float _rate )
@@ -554,16 +555,21 @@ void VSTPluginProcessSamplesFloat32( AEffect* vstPlugin, float** inputs, float**
 
    track_t* track = wrapper->getTrack();
 
-   for ( int i = 0; i < wrapper->getNumInputs() && i < MAX_CHANNELS; i++ )
+   for ( int i = 0; i < wrapper->getNumInputs() && i < MAX_CHANNELS; ++i )
    {
       auto inputSamples = inputs[i];
       auto outputSamples = outputs[i];
 
-      if ( 1 == wrapper->process )
-         add_sample_data( track, (size_t)i, inputSamples, (size_t)sampleFrames );
-
       if ( nullptr != inputSamples && nullptr != outputSamples && inputSamples != outputSamples )
-         memcpy( outputSamples, inputSamples, (size_t) sampleFrames * sizeof( float ) );
+      {
+         if ( 1 == wrapper->process && 1 == wrapper->bandpass )
+            process_cascade( &wrapper->filters[i], inputSamples, outputSamples, (size_t) sampleFrames );
+         else
+            memcpy( outputSamples, inputSamples, (size_t) sampleFrames * sizeof( float ) );
+      }
+
+      if ( 1 == wrapper->process )
+         add_sample_data( track, (size_t) i, outputSamples, (size_t) sampleFrames );
    }
 
    if ( 1 == wrapper->process )
@@ -894,6 +900,7 @@ static void loc_mouse_cbk( lglw_t _lglw, int32_t _x, int32_t _y, uint32_t _butto
    (void)_buttonState;
    (void)_changedButtonState;
    auto* wrapper = (VSTPluginWrapper*) lglw_userdata_get( _lglw );
+   wrapper->bandpass = ( LGLW_MOUSE_LBUTTON == _buttonState ) ? 1 : 0;
    wrapper->setMousePosition( _x, _y );
 }
 
@@ -903,6 +910,7 @@ static void loc_focus_cbk( lglw_t _lglw, uint32_t _focusState, uint32_t _changed
    if ( _focusState == 0 )
    {
       auto* wrapper = (VSTPluginWrapper*) lglw_userdata_get( _lglw );
+      wrapper->bandpass = 0;
       wrapper->setMousePosition( 0, 0 );
    }
 }
@@ -936,6 +944,7 @@ VSTPluginWrapper::VSTPluginWrapper( audioMasterCallback vstHostCallback,
                                     VstInt32 numInputs,
                                     VstInt32 numOutputs ) :
         editor_rect(),
+        filters(),
         _vstHostCallback( vstHostCallback ),
         _vstPlugin()
 {
