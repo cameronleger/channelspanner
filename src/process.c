@@ -126,6 +126,7 @@ void process_samples( track_t* track, float reactivity )
    if ( NULL == track ) return;
 
    size_t frameSize = track->frameSize;
+   size_t fftSize = track->wrk->fftSize;
 
    for ( size_t ch = 0; ch < MAX_CHANNELS; ++ch )
    {
@@ -148,18 +149,18 @@ void process_samples( track_t* track, float reactivity )
       {
          fftwf_execute( track->wrk->fftw );
 
-         for ( size_t i = 0; i < track->wrk->fftSize; ++i )
+         for ( size_t i = 0; i < fftSize; ++i )
             track->wrk->fftTmp[i] = sqrtf(
                     track->wrk->fftOutput[i][0] * track->wrk->fftOutput[i][0] +
                     track->wrk->fftOutput[i][1] * track->wrk->fftOutput[i][1]
             ) * track->wrk->frameSizeInv;
       }
       else
-         for ( size_t i = 0; i < track->wrk->fftSize; ++i )
+         for ( size_t i = 0; i < fftSize; ++i )
             track->wrk->fftTmp[i] = 0;
 
       int hasOldValues = 0;
-      for ( size_t i = 0; i < track->wrk->fftSize; ++i )
+      for ( size_t i = 0; i < fftSize; ++i )
          if ( c->fft[i] > 0.0f )
          {
             hasOldValues = 1;
@@ -168,10 +169,16 @@ void process_samples( track_t* track, float reactivity )
 
       if ( hasNewValues || hasOldValues )
       {
-         const float kFrom = reactivity;
-         const float kTo = 1.0f - reactivity;
-         for ( size_t i = 0; i < track->wrk->fftSize; ++i )
-            c->fft[i] = c->fft[i] * kTo + track->wrk->fftTmp[i] * kFrom;
+         if ( reactivity == 1.0f )
+            for ( size_t i = 0; i < fftSize; ++i )
+               c->fft[i] = track->wrk->fftTmp[i];
+         else
+         {
+            const float kFrom = reactivity;
+            const float kTo = 1.0f - kFrom;
+            for ( size_t i = 0; i < fftSize; ++i )
+               c->fft[i] = c->fft[i] * kTo + track->wrk->fftTmp[i] * kFrom;
+         }
       }
 
 //      DEBUG_PRINT( "Processed %zu samples for channel %zu\n", track->frameSize, ch );
