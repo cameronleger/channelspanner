@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <GL/glew.h>
+#include <fontconfig/fontconfig.h>
 
 #include "draw.h"
 #include "textshader.h"
@@ -58,6 +59,7 @@ draw_ctx_t* init_draw_ctx( uint8_t scale, float sampleRate )
    ctx->mousey = 1.0f;
    ctx->width = 0;
    ctx->height = 0;
+   ctx->dpi = 96;
    ctx->scale = scale;
 
    ctx->sr = sampleRate;
@@ -424,57 +426,85 @@ void init_draw( draw_ctx_t* ctx )
    // GLEW generates GL error because it calls glGetString(GL_EXTENSIONS), we'll consume it here.
    glGetError();
 
-   FT_Library freetype;
-   FT_Face fontface;
+   FcConfig* config = FcInitLoadConfigAndFonts();
 
-   e = FT_Init_FreeType( &freetype );
-   if ( e )
-      fprintf( stderr, "Unable to load FreeType: %i\n", e );
+   FcPattern* pat = FcNameParse( (const FcChar8*) "Monospace" );
+   FcConfigSubstitute( config, pat, FcMatchPattern );
+   FcDefaultSubstitute( pat );
 
-   e = FT_New_Face( freetype, FONT_FACE, 0, &fontface );
-   if ( e )
-      fprintf( stderr, "Unable to load FreeType Font: %i\n", e );
-   FT_Set_Pixel_Sizes( fontface, 0, 8u * ctx->scale );
-
-   for ( GLubyte c = 0; c < 128; c++ )
+   FcResult result;
+   FcPattern* foundfont = FcFontMatch( config, pat, &result );
+   FcChar8* fontpath;
+   result = FcPatternGetString( foundfont, FC_FILE, 0, &fontpath );
+   if ( result != FcResultMatch )
    {
-      if ( FT_Load_Char( fontface, c, FT_LOAD_RENDER ) )
-      {
-         fprintf( stderr, "Unable to load character: %i, %c\n", c, c );
-         continue;
-      }
-      GLuint tex;
-      glGenTextures( 1, &tex );
-      glBindTexture( GL_TEXTURE_2D, tex );
-      glTexImage2D(
-              GL_TEXTURE_2D,
-              0/*level*/,
-              GL_RED,
-              fontface->glyph->bitmap.width,
-              fontface->glyph->bitmap.rows,
-              0/*border*/,
-              GL_RED,
-              GL_UNSIGNED_BYTE,
-              fontface->glyph->bitmap.buffer
-      );
-      glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-      glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
-      glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-      glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+      DEBUG_PRINT( "Unable to find a Font: %i\n", result );
+   }
+   else
+   {
+      DEBUG_PRINT( "Using Font: %s\n", fontpath );
 
-      character_t ch = {
-              tex,
-              fontface->glyph->bitmap.width,
-              fontface->glyph->bitmap.rows,
-              fontface->glyph->bitmap_left,
-              fontface->glyph->bitmap_top,
-              fontface->glyph->advance.x
-      };
-      ctx->characters[c] = ch;
+      FT_Library freetype;
+      FT_Face fontface;
+
+      e = FT_Init_FreeType( &freetype );
+      if ( e )
+         fprintf( stderr, "Unable to load FreeType: %i\n", e );
+      else
+      {
+         e = FT_New_Face( freetype, (char*) fontpath, 0, &fontface );
+         if ( e )
+            fprintf( stderr, "Unable to load FreeType Font: %i\n", e );
+         else
+         {
+            FT_Set_Char_Size( fontface, 0, 10 * 64, 0, (FT_UInt) ctx->dpi );
+
+            for ( GLubyte c = 0; c < 128; c++ )
+            {
+               if ( FT_Load_Char( fontface, c, FT_LOAD_RENDER ) )
+               {
+                  fprintf( stderr, "Unable to load character: %i, %c\n", c, c );
+                  continue;
+               }
+               GLuint tex;
+               glGenTextures( 1, &tex );
+               glBindTexture( GL_TEXTURE_2D, tex );
+               glTexImage2D(
+                       GL_TEXTURE_2D,
+                       0/*level*/,
+                       GL_RED,
+                       fontface->glyph->bitmap.width,
+                       fontface->glyph->bitmap.rows,
+                       0/*border*/,
+                       GL_RED,
+                       GL_UNSIGNED_BYTE,
+                       fontface->glyph->bitmap.buffer
+               );
+               glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+               glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+               glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+               glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+
+               character_t ch = {
+                       tex,
+                       fontface->glyph->bitmap.width,
+                       fontface->glyph->bitmap.rows,
+                       fontface->glyph->bitmap_left,
+                       fontface->glyph->bitmap_top,
+                       fontface->glyph->advance.x
+               };
+               ctx->characters[c] = ch;
+            }
+
+            FT_Done_Face( fontface );
+         }
+
+         FT_Done_FreeType( freetype );
+      }
    }
 
-   FT_Done_Face( fontface );
-   FT_Done_FreeType( freetype );
+   FcPatternDestroy( foundfont );
+   FcPatternDestroy( pat );
 
    glGenVertexArrays( 1, &ctx->vao );
    glGenBuffers( 1, &ctx->vbo );

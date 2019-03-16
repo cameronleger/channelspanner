@@ -14,7 +14,6 @@ add_definitions(
         "-DMAX_CHANNELS=2"
         "-DMAX_FFT=16384"
         "-DMAX_INSTANCES=32"
-        "-DFONT_FACE=\"/usr/share/fonts/TTF/DejaVuSansMono.ttf\""
 )
 
 # no absolute paths during logging
@@ -64,10 +63,15 @@ if(LINUX)
 
     find_path(FFTW_INCLUDE_DIRS fftw3.h
             /usr/include /usr/local/include)
+
+    find_path(FONTCONFIG_INCLUDE_DIRS fontconfig/fontconfig.h
+            /usr/include /usr/local/include)
+    find_library(FONTCONFIG_LIBRARIES NAMES fontconfig
+            PATHS /usr/lib /usr/local/lib)
 endif()
 
 if(WIN32)
-    message(FATAL "TODO: FreeType/GLEW/JANSSON/FFTW Windows")
+    message(FATAL "TODO: FreeType/FontConfig/GLEW/JANSSON/FFTW Windows")
 endif()
 
 include_directories(dep/vst2)
@@ -75,6 +79,7 @@ include_directories(src)
 
 include_directories(${GLEW_INCLUDE_DIRS})
 include_directories(${FREETYPE_INCLUDE_DIRS})
+include_directories(${FONTCONFIG_INCLUDE_DIRS})
 include_directories(${FFTW_INCLUDE_DIRS})
 include_directories(${JANSSON_INCLUDE_DIRS})
 
@@ -93,7 +98,7 @@ add_library(ChannelSpanner STATIC
         src/biquad.c
         ${SPANNER}
         )
-target_link_libraries(ChannelSpanner rt LGLW OpenGL::GL fftw3f ${GLEW_LIBRARIES} ${FREETYPE_LIBRARIES} ${CMAKE_DL_LIBS})
+target_link_libraries(ChannelSpanner rt bsd LGLW OpenGL::GL fftw3f GLEW::GLEW ${FREETYPE_LIBRARIES} ${FONTCONFIG_LIBRARIES} ${CMAKE_DL_LIBS})
 set_property(TARGET ChannelSpanner PROPERTY POSITION_INDEPENDENT_CODE ON)
 set_property(TARGET ChannelSpanner PROPERTY C_STANDARD 11)
 set_property(TARGET ChannelSpanner PROPERTY CXX_STANDARD 14)
@@ -109,3 +114,13 @@ set_target_properties(ChannelSpannerVST2 PROPERTIES
         OUTPUT_NAME "ChannelSpanner"
         LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin
         )
+
+# build the testing executable
+add_executable(ChannelSpannerTest src/vst2.cpp src/main.c)
+target_link_libraries(ChannelSpannerTest ChannelSpanner ${JANSSON_LIBRARIES})
+
+
+# build and run the Debugging Host
+find_library(SNDFILE sndfile)
+add_executable(DebugHost src/debugging_host.cpp)
+target_link_libraries(DebugHost ${SNDFILE} ${X11_LIBRARIES} ${CMAKE_DL_LIBS})

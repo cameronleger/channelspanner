@@ -41,8 +41,6 @@ static void loc_redraw_cbk( lglw_t _lglw );
 class VSTPluginWrapper
 {
 public:
-   static long counter;
-
    ERect editor_rect;
    lglw_t lglw;
 
@@ -90,7 +88,7 @@ public:
    int openEffect()
    {
       initTrack();
-      shmem = open_shared_memory( VSTPluginWrapper::counter++ );
+      shmem = open_shared_memory();
       return 1;
    }
 
@@ -121,6 +119,7 @@ public:
       if ( nullptr != ctx )
          freeCtx();
       ctx = init_draw_ctx( windowScale, sampleRate );
+      lglw_dpi_get( lglw, &ctx->dpi );
    }
 
    void freeTrack()
@@ -792,6 +791,10 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
       r = 1;
       break;
 
+   case effProcessEvents:
+//      DEBUG_PRINT( "effProcessEvents\n" );
+      break;
+
    case effEditIdle:
 //      DEBUG_PRINT( "effEditIdle\n" );
       if ( lglw_window_is_visible( wrapper->lglw ) )
@@ -989,8 +992,6 @@ VSTPluginWrapper::~VSTPluginWrapper()
 {
    lglw_exit( lglw );
 }
-
-long VSTPluginWrapper::counter = 100;
 
 extern AEffect
 *

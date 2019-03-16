@@ -11,6 +11,13 @@ Parameters are tweaked in your VST Host, and not the plugin window! These values
 - Speed: how fast the spectrum appears to move. A value of 0 implies that the spectrum is frozen, 1 would be always displaying the exact result in every frame, and in-between values 'smooth' the updates of the spectrum by blending new results with previous results according to this value.
 - Window Size: multiplier for how large the GUI should be.
 
+#Requirements
+These have been determined by installing the distribution with the default options and identifying the missing components. Your machine's needs may vary, and you can run `ldd ChannelSpanner.so | grep "not found"` to check any missing libraries.
+## Ubuntu
+`sudo apt-get install libglew2.0 libopengl0`
+## Debian
+`sudo apt-get install libglew2.0`
+
 #Motivations
 I was frustrated by the lack of decent (read: simple, pretty, fast, free) Spectrum Analyzer plugins, especially on Linux. I set out to make a quick analyzer that worked for my needs, but figured I could add a feature not normally found in free plugins: inter-process communications.
 
@@ -56,7 +63,7 @@ make
 ```
 or
 ```
-cmake-build-debug
+mkdir cmake-build-debug
 cd cmake-build-debug
 cmake -DCMAKE_BUILD_TYPE=Debug ..
 make
@@ -65,6 +72,7 @@ Copy the resulting library file from `bin` to wherever you store your VSTs.
 
 #Credits
 - FreeType
+- Fontconfig
 - GLEW
 - FFTW
 - LGLW

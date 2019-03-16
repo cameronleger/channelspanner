@@ -25,7 +25,7 @@ typedef struct {
 
 typedef struct shared_memory_t shared_memory_t;
 
-shared_memory_t* open_shared_memory( long id );
+shared_memory_t* open_shared_memory();
 
 void close_shared_memory( shared_memory_t* shmem );
 

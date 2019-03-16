@@ -29,6 +29,7 @@ typedef struct {
 
    int width;
    int height;
+   int dpi;
 
    float swidth;
    float sheight;

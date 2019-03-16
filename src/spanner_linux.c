@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <string.h>
 #include <time.h>
+#include <bsd/stdlib.h>
 
 #include "spanner.h"
 #include "logging.h"
@@ -29,13 +30,14 @@ int find_shared_memory_slot( shared_memory_t* shmem )
    {
       if ( shmem->id == shmem->spanner->tracks[i].id )
       {
-         DEBUG_PRINT( "Found this instance %li at: %i\n", shmem->id, i );
+//         DEBUG_PRINT( "Found this instance %li at: %i\n", shmem->id, i );
          slot = i;
          break;
       }
 
       if ( 0 == shmem->spanner->tracks[i].id && -1 == emptySlot )
       {
+         shmem->spanner->tracks[i].id = shmem->id;
          emptySlot = i;
       }
    }
@@ -59,23 +61,22 @@ void clear_old_shared_memory( shared_memory_t* shmem, long now )
       {
          DEBUG_PRINT( "Clearing old slot %i; %li - %li > %i\n", i, now, t->lastUpdate, OLD_UPDATE );
          t->id = 0;
-         shmem->spanner->users -= 1;
+         if ( shmem->spanner->users > 0 )
+         {
+            shmem->spanner->users -= 1;
+         }
       }
    }
 }
 
-shared_memory_t* open_shared_memory( long id )
+shared_memory_t* open_shared_memory()
 {
    shared_memory_t* shmem = malloc( sizeof( shared_memory_t ) );
    shmem->fd = -1;
    shmem->spanner = NULL;
-   shmem->id = id;
+   shmem->id = arc4random() % ((unsigned)RAND_MAX + 1);
 
-   if ( -1 == shmem->id )
-   {
-      DEBUG_PRINT( "Unable to get a Unique ID for this thread: %s\n", strerror( errno ) );
-      return shmem;
-   }
+   DEBUG_PRINT( "Creating a new Shared Memory instance with ID: %li\n", shmem->id );
 
    shmem->fd = shm_open( "/" SHMEMNAME,
                          O_RDWR | O_CREAT | O_EXCL,
@@ -127,10 +128,19 @@ shared_memory_t* open_shared_memory( long id )
 
 void close_shared_memory( shared_memory_t* shmem )
 {
+   if ( NULL == shmem )
+   {
+      DEBUG_PRINT( "Skip closing non-existent Shared Memory!\n" );
+      return;
+   }
+
    if ( NULL != shmem->spanner )
    {
-      DEBUG_PRINT( "Reducing Shared Memory User Count (%zu -> %zu)\n", shmem->spanner->users, shmem->spanner->users - 1 );
-      shmem->spanner->users -= 1;
+      if ( shmem->spanner->users > 0 )
+      {
+         DEBUG_PRINT( "Reducing Shared Memory User Count (%zu -> %zu)\n", shmem->spanner->users, shmem->spanner->users - 1 );
+         shmem->spanner->users -= 1;
+      }
 
       leave_shared_memory( shmem );
 
