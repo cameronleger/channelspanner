@@ -1,0 +1,22 @@
+FROM ubuntu:18.10
+
+RUN apt-get update \
+    && apt-get install -y \
+        make cmake \
+        libfreetype6-dev \
+        libfontconfig1-dev \
+        libglew-dev \
+        libjansson-dev \
+        libfftw3-dev \
+        libbsd-dev \
+        libasound2
+
+# disgusting...
+RUN apt-get install -y software-properties-common \
+    && add-apt-repository ppa:xapienz/curl34 \
+    && apt-get update \
+    && apt-get install -y curl
+
+RUN mkdir /build
+WORKDIR /build
+CMD ["/build/build.sh"]

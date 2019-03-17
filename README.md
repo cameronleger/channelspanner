@@ -14,15 +14,11 @@ Parameters are tweaked in your VST Host, and not the plugin window! These values
 
 # Requirements
 
-These have been determined by installing the distribution with the default options and identifying the missing components. Your machine's needs may vary, and you can run `ldd ChannelSpanner.so | grep "not found"` to check any missing libraries.
+These have been determined by installing the distribution with the default options and identifying the missing components. Your machine's needs may vary, and you can run `ldd ChannelSpanner.so | grep "not found"` to check any missing libraries. Also, note the `Dockerfile`s in `build` to see which package names were required to build, and try installing the non-development versions of them.
 
 ## Ubuntu
 
-`sudo apt-get install libglew2.0 libopengl0`
-
-## Debian
-
-`sudo apt-get install libglew2.0`
+`sudo apt-get install libglew2.0 libopengl0 libbsd0 libfreetype6 libfontconfig1 libjansson4 libfftw3-3`
 
 # Motivations
 
@@ -70,7 +66,7 @@ ChannelSpanner is built using CMake. You can simply run
 ```
 mkdir cmake-build-release
 cd cmake-build-release
-cmake ..
+cmake -DCMAKE_BUILD_TYPE=Release ..
 make
 ```
 or

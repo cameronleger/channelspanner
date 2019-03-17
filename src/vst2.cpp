@@ -149,6 +149,12 @@ public:
 
    void openEditor( void* wnd )
    {
+      if ( nullptr != lglw )
+      {
+         lglw = lglw_init( editor_rect.right, editor_rect.bottom );
+         lglw_userdata_set( lglw, this );
+      }
+
       initCtx();
 
       (void) lglw_window_open( lglw, wnd, 0, 0, editor_rect.right, editor_rect.bottom );
@@ -996,10 +1002,6 @@ VSTPluginWrapper::VSTPluginWrapper( audioMasterCallback vstHostCallback,
    editor_rect.left = 0;
    editor_rect.right = (VstInt16)(EDITWIN_W * windowScale);
    editor_rect.bottom = (VstInt16)(EDITWIN_H * windowScale);
-
-   lglw = lglw_init( editor_rect.right, editor_rect.bottom );
-
-   lglw_userdata_set( lglw, this );
 
    track = nullptr;
    ctx = nullptr;

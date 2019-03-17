@@ -1,6 +1,11 @@
 cmake_minimum_required (VERSION 3.12)
 project (ChannelSpanner LANGUAGES C CXX)
 
+if (NOT CMAKE_BUILD_TYPE)
+    message(STATUS "No build type selected, default to Release")
+    set(CMAKE_BUILD_TYPE "Release")
+endif()
+
 if(UNIX AND NOT APPLE)
     set(LINUX TRUE)
 endif()
