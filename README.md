@@ -48,9 +48,9 @@ Mixing different settings for different builds of this plugin and using them tog
 #Building
 NOTE: This plugin and its build files are currently setup only for Linux. Minor Makefile changes and a Windows-specific implementation of the Shared Memory code is required before this will work on Windows.
 
-See `dep/vstsdk` for instructions related to downloading and extracting the VST2SDK.
+See `dep/vstsdk` for instructions related to downloading and extracting the VST2SDK, if you'd rather use that than the included `vestige.h`. Namely, it would enable slightly better parameter interactions in your host, if it supports it.
 
-FreeType, Jansson, FFTW, and GLEW must be installed including their development headers.
+FreeType, Fontconfig, Jansson, FFTW, and GLEW must be installed including their development headers.
 
 You may want to tweak some of the definitions in `CMakeLists.txt` if you're not happy with the defaults.
 ###Build ChannelSpanner

@@ -1,4 +1,4 @@
-Place the contents of VST_SDK/VST2_SDK/pluginterfaces/vst2.x/* here
+If you have the sources, place the contents of VST_SDK/VST2_SDK/pluginterfaces/vst2.x/* here, and modify the CMakeLists.txt file to compile with them instead. If not, the vestige.h file will work just fine.
 
 aeffect.h and aeffectx.h are the required components
 

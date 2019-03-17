@@ -349,6 +349,7 @@ public:
       }
    }
 
+#ifndef VESTIGE
    int getParameterProperties( int uniqueParamId, VstParameterProperties* prop )
    {
       switch ( uniqueParamId )
@@ -438,6 +439,7 @@ public:
          return 1;
       }
    }
+#endif
 
    int getSavedState( uint8_t** _addr )
    {
@@ -596,7 +598,7 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
 
    case effGetPlugCategory:
       DEBUG_PRINT( "effGetPlugCategory\n" );
-      return kPlugCategEffect;
+      return kPlugCategAnalysis;
 
    case effOpen:
       DEBUG_PRINT( "effOpen\n" );
@@ -631,6 +633,7 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
       DEBUG_PRINT( "effGetVendorVersion\n" );
       return PLUGIN_VERSION;
 
+#ifndef VESTIGE
    case effGetNumMidiInputChannels:
       DEBUG_PRINT( "effGetNumMidiInputChannels\n" );
       r = 16;
@@ -640,6 +643,7 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
       DEBUG_PRINT( "effGetNumMidiOutputChannels\n" );
       r = 0;
       break;
+#endif
 
    case effCanDo:
       DEBUG_PRINT( "effCanDo\n" );
@@ -683,6 +687,7 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
          r = 0;
       break;
 
+#ifndef VESTIGE
    case effGetTailSize:
 //      DEBUG_PRINT( "effGetTailSize\n" );
       r = 1;
@@ -713,6 +718,7 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
          r = 1;
       }
       break;
+#endif
 
    case effSetSampleRate:
       DEBUG_PRINT( "effSetSampleRate\n" );
@@ -837,10 +843,12 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
       r = 1;
       break;
 
+#ifndef VESTIGE
    case effGetParameterProperties:
       DEBUG_PRINT( "effGetParameterProperties\n" );
       r = wrapper->getParameterProperties( index, (VstParameterProperties*) ptr );
       break;
+#endif
 
    case effGetChunk:
       DEBUG_PRINT( "effGetChunk\n" );
@@ -852,10 +860,12 @@ VSTPluginDispatcher( AEffect* vstPlugin, VstInt32 opCode, VstInt32 index, VstInt
       r = wrapper->setSavedState( size_t( value ), (uint8_t*) ptr );
       break;
 
+#ifndef VESTIGE
    case effGetMidiKeyName:
 //      DEBUG_PRINT( "effGetMidiKeyName\n" );
       r = 0;
       break;
+#endif
 
    case effBeginSetProgram:
       DEBUG_PRINT( "effBeginSetProgram\n" );
@@ -957,11 +967,18 @@ VSTPluginWrapper::VSTPluginWrapper( audioMasterCallback vstHostCallback,
 
    _vstPlugin.object = this;
 
+#ifdef VESTIGE
+   _vstPlugin.flags =
+           effFlagsProgramChunks |
+           effFlagsCanReplacing |
+           effFlagsHasEditor;
+#else
    _vstPlugin.flags =
            effFlagsNoSoundInStop |
            effFlagsProgramChunks |
            effFlagsCanReplacing |
            effFlagsHasEditor;
+#endif
 
    _vstPlugin.uniqueID = vendorUniqueID;
    _vstPlugin.version = vendorVersion;

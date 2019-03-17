@@ -14,6 +14,7 @@ add_definitions(
         "-DMAX_CHANNELS=2"
         "-DMAX_FFT=16384"
         "-DMAX_INSTANCES=32"
+        "-DVESTIGE"
 )
 
 # no absolute paths during logging
@@ -114,13 +115,3 @@ set_target_properties(ChannelSpannerVST2 PROPERTIES
         OUTPUT_NAME "ChannelSpanner"
         LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin
         )
-
-# build the testing executable
-add_executable(ChannelSpannerTest src/vst2.cpp src/main.c)
-target_link_libraries(ChannelSpannerTest ChannelSpanner ${JANSSON_LIBRARIES})
-
-
-# build and run the Debugging Host
-find_library(SNDFILE sndfile)
-add_executable(DebugHost src/debugging_host.cpp)
-target_link_libraries(DebugHost ${SNDFILE} ${X11_LIBRARIES} ${CMAKE_DL_LIBS})
