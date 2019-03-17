@@ -99,7 +99,10 @@ add_library(ChannelSpanner STATIC
         src/biquad.c
         ${SPANNER}
         )
-target_link_libraries(ChannelSpanner rt bsd LGLW OpenGL::GL fftw3f GLEW::GLEW ${FREETYPE_LIBRARIES} ${FONTCONFIG_LIBRARIES} ${CMAKE_DL_LIBS})
+target_link_libraries(ChannelSpanner
+        rt bsd LGLW OpenGL::GL fftw3f GLEW::GLEW
+        ${FREETYPE_LIBRARIES} ${FONTCONFIG_LIBRARIES} ${CMAKE_DL_LIBS}
+        )
 set_property(TARGET ChannelSpanner PROPERTY POSITION_INDEPENDENT_CODE ON)
 set_property(TARGET ChannelSpanner PROPERTY C_STANDARD 11)
 set_property(TARGET ChannelSpanner PROPERTY CXX_STANDARD 14)
