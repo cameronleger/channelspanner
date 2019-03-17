@@ -1,4 +1,5 @@
-#ChannelSpanner
+# ChannelSpanner
+
 This VST2 Plugin aims to be a quick, light, and no-fuss multi-track Spectrum Analyzer. To that end, simply add multiple instances of this plugin, possibly tweak some parameters in your host, and enjoy! Use it for visualizing each bus, each lead, or even before and after an effect chain.
 
 The GUI should be self-explanatory: it displays the frequency spectrum for the input data, and the crosshair under the mouse displays decibel levels, frequency in Hz, and note, octave, and detuning. By default, other loaded instances of this plugin will also display their frequency spectrums, although visually in the 'background.' The only feature that's not immediately obvious is that you can 'sweep' the current instances frequencies with a variable bandpass filter by left-clicking on the graph. Moving from left to right adjusts the cutoff frequency to follow your mouse, and moving from bottom to top adjusts the Q or slope of the filter, where the top of the window is very narrow and the bottom is pretty wide.
@@ -11,24 +12,32 @@ Parameters are tweaked in your VST Host, and not the plugin window! These values
 - Speed: how fast the spectrum appears to move. A value of 0 implies that the spectrum is frozen, 1 would be always displaying the exact result in every frame, and in-between values 'smooth' the updates of the spectrum by blending new results with previous results according to this value.
 - Window Size: multiplier for how large the GUI should be.
 
-#Requirements
+# Requirements
+
 These have been determined by installing the distribution with the default options and identifying the missing components. Your machine's needs may vary, and you can run `ldd ChannelSpanner.so | grep "not found"` to check any missing libraries.
+
 ## Ubuntu
+
 `sudo apt-get install libglew2.0 libopengl0`
+
 ## Debian
+
 `sudo apt-get install libglew2.0`
 
-#Motivations
+# Motivations
+
 I was frustrated by the lack of decent (read: simple, pretty, fast, free) Spectrum Analyzer plugins, especially on Linux. I set out to make a quick analyzer that worked for my needs, but figured I could add a feature not normally found in free plugins: inter-process communications.
 
 Another frustration was that most of these plugins relied on sidechaining signals in order to view multiple tracks, so in your VST Host you have to select the other track you want to see and keep changing it if your options are limited or duplicate the plugin.
 
 It was actually rather simple to get this up and running with those goals; more time was probably spend optimizing and tweaking the code than anything else!
 
-#Contributing
+# Contributing
+
 Windows implementations of `spanner.h`, CMake updates for Windows libraries, or fixes and some features are welcome!
 
-#Technical
+# Technical
+
 Prior to building, it may help to understand some behind-the-scenes aspects of this plugin. First, there are a few constants used when building that affect the plugin:
 
 - `MAX_CHANNELS`: First, this sets the number of input/output ports of the plugin, so all instances will always have `x` input/outputs. It's also a multiplier on the memory usage. Obviously, processing more information will affect performance. Note that with '1' channel, whether or not this is a mono signal or simply the left or right channel will depend on how the host recognizes this.
@@ -45,7 +54,8 @@ The first loaded instance will create the Shared Memory, and the last unloaded i
 
 Mixing different settings for different builds of this plugin and using them together is not supported. It will almost certainly crash constantly.
 
-#Building
+# Building
+
 NOTE: This plugin and its build files are currently setup only for Linux. Minor Makefile changes and a Windows-specific implementation of the Shared Memory code is required before this will work on Windows.
 
 See `dep/vstsdk` for instructions related to downloading and extracting the VST2SDK, if you'd rather use that than the included `vestige.h`. Namely, it would enable slightly better parameter interactions in your host, if it supports it.
@@ -53,7 +63,9 @@ See `dep/vstsdk` for instructions related to downloading and extracting the VST2
 FreeType, Fontconfig, Jansson, FFTW, and GLEW must be installed including their development headers.
 
 You may want to tweak some of the definitions in `CMakeLists.txt` if you're not happy with the defaults.
-###Build ChannelSpanner
+
+## Build ChannelSpanner
+
 ChannelSpanner is built using CMake. You can simply run
 ```
 mkdir cmake-build-release
@@ -70,7 +82,8 @@ make
 ```
 Copy the resulting library file from `bin` to wherever you store your VSTs.
 
-#Credits
+# Credits
+
 - FreeType
 - Fontconfig
 - GLEW
