@@ -74,6 +74,7 @@ void free_sample_data( track_t* track )
 void update_frame_size( track_t* track, size_t frameSize )
 {
    if ( NULL == track ) return;
+   if ( track->frameSize == frameSize ) return;
 
    free_working_area( track );
    track->frameSize = frameSize;

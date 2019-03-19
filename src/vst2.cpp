@@ -136,11 +136,6 @@ public:
       ctx = nullptr;
    }
 
-   void updateFFTSize()
-   {
-      update_frame_size( track, FFT_SCALER(fftScale) );
-   }
-
    void updateTrack()
    {
       process_samples( track, reactivity );
@@ -149,7 +144,7 @@ public:
 
    void openEditor( void* wnd )
    {
-      if ( nullptr != lglw )
+      if ( nullptr == lglw )
       {
          lglw = lglw_init( editor_rect.right, editor_rect.bottom );
          lglw_userdata_set( lglw, this );
@@ -240,8 +235,6 @@ public:
       case 0:
       {
          fftScale = (uint8_t) roundf( value * FFT_SCALE_MAX );
-         if ( track->frameSize != FFT_SCALER( fftScale ) )
-            updateFFTSize();
          break;
       }
       case 1:
@@ -561,6 +554,8 @@ void VSTPluginProcessSamplesFloat32( AEffect* vstPlugin, float** inputs, float**
 //   DEBUG_PRINT( "Processing %i sample frames for %i inputs (max %i)\n", sampleFrames, wrapper->getNumInputs(), MAX_CHANNELS );
 
    track_t* track = wrapper->getTrack();
+
+   update_frame_size( track, FFT_SCALER( wrapper->fftScale ) );
 
    for ( int i = 0; i < wrapper->getNumInputs() && i < MAX_CHANNELS; ++i )
    {
@@ -1005,6 +1000,7 @@ VSTPluginWrapper::VSTPluginWrapper( audioMasterCallback vstHostCallback,
 
    track = nullptr;
    ctx = nullptr;
+   lglw = nullptr;
 }
 
 VSTPluginWrapper::~VSTPluginWrapper()

@@ -1,4 +1,8 @@
-# ChannelSpanner
+# Channel Spanner
+
+[![Build Status](https://travis-ci.org/cameronleger/channelspanner.svg?branch=master)](https://travis-ci.org/cameronleger/channelspanner)
+
+![Example Screenshot for Channel Spanner](/screenshot.jpg?raw=true "Example Screenshot for Channel Spanner")
 
 This VST2 Plugin aims to be a quick, light, and no-fuss multi-track Spectrum Analyzer. To that end, simply add multiple instances of this plugin, possibly tweak some parameters in your host, and enjoy! Use it for visualizing each bus, each lead, or even before and after an effect chain.
 
