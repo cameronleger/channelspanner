@@ -11,12 +11,6 @@ RUN apt-get update \
         libbsd-dev \
         libasound2
 
-# disgusting...
-RUN apt-get install -y software-properties-common \
-    && add-apt-repository ppa:xapienz/curl34 \
-    && apt-get update \
-    && apt-get install -y curl
-
 RUN mkdir /build
 WORKDIR /build
 CMD ["/build/build.sh"]
