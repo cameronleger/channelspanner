@@ -82,6 +82,10 @@ make
 ```
 Copy the resulting library file from `bin` to wherever you store your VSTs.
 
+### Debian
+
+Kind user nilninull has created an ebuild for portage located here: https://github.com/nilninull/portage/tree/master/media-sound/channelspanner
+
 # Credits
 
 - FreeType
